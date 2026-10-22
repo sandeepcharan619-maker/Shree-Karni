@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  password      String
+  name          String
+  email         String?
+  phone         String?
+  role          String    @default("ASSOCIATE") // ADMIN or ASSOCIATE
+  rank          String    @default("Client Adviser")
+  memberId      String    @unique
+  referredById  String?
+  referredBy    User?     @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]    @relation("Referrals")
+  walletBalance Float     @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sales         Sale[]
+  leads         Lead[]
+  visitors      Visitor[]
+  incentives    Incentive[]
+}
+
+model Plot {
+  id          String   @id @default(cuid())
+  plotNumber  String   @unique
+  projectName String   @default("Shree Karni City")
+  location    String
+  sizeGaj     Float
+  pricePerGaj Float
+  totalPrice  Float
+  status      String   @default("AVAILABLE") // AVAILABLE, SOLD, RESERVED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sale        Sale?
+}
+
+model Sale {
+  id         String   @id @default(cuid())
+  plotId     String   @unique
+  plot       Plot     @relation(fields: [plotId], references: [id])
+  soldById   String
+  soldBy     User     @relation(fields: [soldById], references: [id])
+  buyerName  String
+  buyerPhone String
+  buyerEmail String?
+  saleAmount Float
+  saleDate   DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  associateId String
+  associate   User     @relation(fields: [associateId], references: [id])
+  name        String
+  phone       String
+  email       String?
+  status      String   @default("NEW") // NEW, CONTACTED, SITE_VISIT, NEGOTIATION, CONVERTED, LOST
+  source      String?  // Walk-in, Referral, Online, etc.
+  notes       String?
+  plotInterest String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Visitor {
+  id           String   @id @default(cuid())
+  associateId  String
+  associate    User     @relation(fields: [associateId], references: [id])
+  visitorName  String
+  phone        String
+  plotInterest String?
+  visitDate    DateTime @default(now())
+  feedback     String?
+  status       String   @default("VISITED") // VISITED, INTERESTED, NOT_INTERESTED, FOLLOW_UP
+  createdAt    DateTime @default(now())
+}
+
+model Incentive {
+  id          String   @id @default(cuid())
+  associateId String
+  associate   User     @relation(fields: [associateId], references: [id])
+  amount      Float
+  type        String   // SALE, REFERRAL, BONUS, RANK_ACHIEVEMENT
+  description String?
+  status      String   @default("PENDING") // PENDING, APPROVED, PAID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
