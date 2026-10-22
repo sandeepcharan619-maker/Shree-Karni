@@ -588,7 +588,7 @@ export default async function HomePage() {
               />
             </div>
             <p className="mt-2 text-gray-400 leading-relaxed">
-              Premier real estate developers and associate network offering legally sanctioned plots across Jaipur & Jodhpur.
+              Premier real estate developers and associate network offering legally sanctioned plots across Jaipur.
             </p>
           </div>
 
