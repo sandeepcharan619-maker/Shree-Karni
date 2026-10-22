@@ -20,6 +20,9 @@ import {
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import InquiryForm from "@/components/InquiryForm";
+import NavbarAuth from "@/components/NavbarAuth";
+import HeroAuthButtons from "@/components/HeroAuthButtons";
+import AssociateSectionButtons from "@/components/AssociateSectionButtons";
 
 const DEFAULT_PLOTS = [
   {
@@ -165,24 +168,8 @@ export default async function HomePage() {
             </Link>
           </nav>
 
-          {/* Login / Sign Up buttons */}
-          <div className="flex items-center gap-2.5">
-            <Link
-              href="/login"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-slate-300 text-slate-800 text-sm font-semibold hover:bg-slate-50 transition"
-            >
-              <LogIn size={16} className="text-slate-600" />
-              <span>Login</span>
-            </Link>
-
-            <Link
-              href="/register"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#e9b04c] hover:bg-[#d89f3a] text-slate-900 text-sm font-bold shadow-xs hover:shadow transition"
-            >
-              <UserPlus size={16} />
-              <span>Sign Up</span>
-            </Link>
-          </div>
+          {/* Login / Sign Up or Dashboard buttons */}
+          <NavbarAuth />
         </div>
       </header>
 
@@ -208,23 +195,8 @@ export default async function HomePage() {
               Delivering secure, high-yield residential and commercial plots across Rajasthan&apos;s fastest growing corridors. Gated townships with wide roads, water, electricity, and clear demarcation.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
-                href="#plots"
-                className="px-6 py-3.5 rounded-lg bg-[#e9b04c] hover:bg-[#d89f3a] text-slate-900 font-bold text-base shadow-lg transition flex items-center gap-2"
-              >
-                <span>Browse Available Plots</span>
-                <ArrowRight size={18} />
-              </Link>
-
-              <Link
-                href="/register"
-                className="px-6 py-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold text-base border border-slate-700 transition flex items-center gap-2"
-              >
-                <Users size={18} className="text-yellow-400" />
-                <span>Join as Sales Associate</span>
-              </Link>
-            </div>
+            {/* Dynamic Hero Buttons */}
+            <HeroAuthButtons />
           </div>
 
           {/* Quick Metrics Counter */}
@@ -432,23 +404,8 @@ export default async function HomePage() {
                   </div>
                 </div>
 
-                <div className="mt-8 flex flex-wrap items-center gap-4">
-                  <Link
-                    href="/register"
-                    className="px-6 py-3 rounded-lg bg-[#e9b04c] hover:bg-[#d89f3a] text-slate-900 font-bold text-sm shadow-md transition flex items-center gap-2"
-                  >
-                    <UserPlus size={16} />
-                    <span>Sign Up as Associate</span>
-                  </Link>
-
-                  <Link
-                    href="/login"
-                    className="px-6 py-3 rounded-lg border border-slate-600 hover:bg-slate-800 text-white font-semibold text-sm transition flex items-center gap-2"
-                  >
-                    <LogIn size={16} />
-                    <span>Associate Login</span>
-                  </Link>
-                </div>
+                {/* Dynamic Associate Section Buttons */}
+                <AssociateSectionButtons />
               </div>
 
               {/* Graphical Card Preview */}
