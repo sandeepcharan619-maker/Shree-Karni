@@ -31,8 +31,8 @@ async function main() {
         entry.name === '.git' ||
         entry.name === 'node_modules' ||
         entry.name === '.next' ||
-        entry.name === 'dev.db' ||
-        entry.name === 'dev.db-journal' ||
+        relPath === 'dev.db' ||
+        entry.name.endsWith('.db-journal') ||
         entry.name === '.DS_Store' ||
         entry.name === '.env'
       ) {
