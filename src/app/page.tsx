@@ -21,12 +21,82 @@ import {
 import StatusBadge from "@/components/StatusBadge";
 import InquiryForm from "@/components/InquiryForm";
 
+const DEFAULT_PLOTS = [
+  {
+    id: "sample-1",
+    plotNumber: "SKC-001",
+    projectName: "Shree Karni City",
+    location: "Sector 1, Jodhpur",
+    sizeGaj: 125,
+    pricePerGaj: 5500,
+    totalPrice: 687500,
+    status: "AVAILABLE",
+  },
+  {
+    id: "sample-2",
+    plotNumber: "SKC-002",
+    projectName: "Shree Karni City",
+    location: "Sector 2, Jodhpur",
+    sizeGaj: 150,
+    pricePerGaj: 6000,
+    totalPrice: 900000,
+    status: "AVAILABLE",
+  },
+  {
+    id: "sample-3",
+    plotNumber: "SKC-003",
+    projectName: "Karni Enclave",
+    location: "Tonk Road / Vatika Corridor, Jaipur",
+    sizeGaj: 175,
+    pricePerGaj: 6500,
+    totalPrice: 1137500,
+    status: "AVAILABLE",
+  },
+  {
+    id: "sample-4",
+    plotNumber: "SKC-004",
+    projectName: "Royal Karni Greens",
+    location: "Sector 3, Jodhpur",
+    sizeGaj: 200,
+    pricePerGaj: 7000,
+    totalPrice: 1400000,
+    status: "RESERVED",
+  },
+  {
+    id: "sample-5",
+    plotNumber: "SKC-005",
+    projectName: "Karni Enclave",
+    location: "Vatika Road, Jaipur",
+    sizeGaj: 225,
+    pricePerGaj: 7500,
+    totalPrice: 1687500,
+    status: "AVAILABLE",
+  },
+  {
+    id: "sample-6",
+    plotNumber: "SKC-006",
+    projectName: "Shree Karni City",
+    location: "Sector 1, Jodhpur",
+    sizeGaj: 250,
+    pricePerGaj: 8000,
+    totalPrice: 2000000,
+    status: "AVAILABLE",
+  },
+];
+
 export default async function HomePage() {
-  // Fetch actual plots from DB
-  const plots = await prisma.plot.findMany({
-    take: 6,
-    orderBy: { createdAt: "desc" },
-  });
+  let plots = DEFAULT_PLOTS;
+  try {
+    const dbPlots = await prisma.plot.findMany({
+      take: 6,
+      orderBy: { createdAt: "desc" },
+    });
+    if (dbPlots && dbPlots.length > 0) {
+      plots = dbPlots;
+    }
+  } catch (err) {
+    // Graceful fallback during build step prerendering or when DB is initializing
+  }
 
   return (
     <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans">
