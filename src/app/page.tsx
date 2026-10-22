@@ -542,7 +542,7 @@ export default async function HomePage() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-800">Head Office</p>
-                    <p className="text-xs text-gray-500">Jaipur & Jodhpur, Rajasthan, India</p>
+                    <p className="text-xs text-gray-500">Main Vatika Road, Jaipur, Rajasthan, India</p>
                   </div>
                 </div>
 
@@ -625,7 +625,7 @@ export default async function HomePage() {
             <h4 className="text-white font-bold text-sm mb-3">Contact Information</h4>
             <p className="text-gray-400 leading-relaxed">
               Shree Karni Real Estate<br />
-              Rajasthan, India<br />
+              Main Vatika Road, Jaipur, Rajasthan, India<br />
               Phone: +91 8952821872<br />
               Email: info@shreekarnirealestate.in
             </p>
