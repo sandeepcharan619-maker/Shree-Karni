@@ -115,8 +115,8 @@ export default async function HomePage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <a href="tel:+919829000000" className="hover:text-yellow-400 transition flex items-center gap-1">
-              <Phone size={12} className="text-yellow-400" /> +91 98290 12345
+            <a href="tel:+918952821872" className="hover:text-yellow-400 transition flex items-center gap-1">
+              <Phone size={12} className="text-yellow-400" /> +91 8952821872
             </a>
             <span className="text-gray-600">|</span>
             <a href="mailto:info@shreekarnirealestate.in" className="hover:text-yellow-400 transition flex items-center gap-1">
@@ -595,7 +595,7 @@ export default async function HomePage() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-800">Direct Phone</p>
-                    <p className="text-xs text-gray-500">+91 98290 12345 / +91 94140 XXXXX</p>
+                    <p className="text-xs text-gray-500">+91 8952821872</p>
                   </div>
                 </div>
 
@@ -669,7 +669,7 @@ export default async function HomePage() {
             <p className="text-gray-400 leading-relaxed">
               Shree Karni Real Estate<br />
               Rajasthan, India<br />
-              Phone: +91 98290 12345<br />
+              Phone: +91 8952821872<br />
               Email: info@shreekarnirealestate.in
             </p>
           </div>
