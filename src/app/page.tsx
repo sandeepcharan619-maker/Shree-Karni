@@ -113,7 +113,7 @@ export default async function HomePage() {
             </span>
             <span className="hidden md:inline text-gray-500">•</span>
             <span className="hidden md:flex items-center gap-1 text-gray-300">
-              <MapPin size={12} className="text-yellow-400" /> Jaipur & Jodhpur Corridors
+              <MapPin size={12} className="text-yellow-400" /> Jaipur Corridors
             </span>
           </div>
 
