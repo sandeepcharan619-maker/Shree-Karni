@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import StatusBadge from "@/components/StatusBadge";
 import AddAssociateModal from "@/app/admin/associates/AddAssociateModal";
 import AssociateRowActions from "@/app/admin/associates/AssociateRowActions";
-import { Search, Users, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Search, Users, CheckCircle2 } from "lucide-react";
 
 export interface AssociateItem {
   id: string;
@@ -38,7 +38,7 @@ export default function AssociatesManager({
   const [rankFilter, setRankFilter] = useState("ALL");
   const [toast, setToast] = useState<string | null>(null);
 
-  // Sync with persistent browser storage on mount to survive Vercel ephemeral lambdas
+  // Sync with persistent browser storage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -47,10 +47,8 @@ export default function AssociatesManager({
         if (Array.isArray(localList) && localList.length > 0) {
           setAssociates((prev) => {
             const map = new Map<string, AssociateItem>();
-            // Add server items first
-            prev.forEach((item) => map.set(item.memberId || item.id, item));
-            // Add/overwrite with stored items
-            localList.forEach((item) => map.set(item.memberId || item.id, item));
+            prev.forEach((item) => map.set((item.memberId || item.id).toUpperCase(), item));
+            localList.forEach((item) => map.set((item.memberId || item.id).toUpperCase(), item));
             return Array.from(map.values());
           });
         }
@@ -58,18 +56,50 @@ export default function AssociatesManager({
     } catch (e) {
       console.warn("Could not load local associates:", e);
     }
+
+    // Listen to global associate add/delete events
+    const handleGlobalAssociateAdded = (e: any) => {
+      const newAssoc = e.detail;
+      if (newAssoc) {
+        setAssociates((prev) => {
+          const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
+          const updated = [newAssoc, ...prev.filter((a) => (a.memberId || "").toUpperCase() !== cleanMemberId)];
+          return updated;
+        });
+        showToast(`Associate ${newAssoc.name} (${newAssoc.memberId}) added to the list!`);
+      }
+    };
+
+    const handleGlobalAssociateDeleted = (e: any) => {
+      const { id, memberId } = e.detail || {};
+      setAssociates((prev) =>
+        prev.filter((a) => {
+          if (id && a.id === id) return false;
+          if (memberId && (a.memberId || "").toUpperCase() === (memberId || "").toUpperCase()) return false;
+          return true;
+        })
+      );
+      showToast("Associate removed successfully.");
+    };
+
+    window.addEventListener("skr-associate-added", handleGlobalAssociateAdded);
+    window.addEventListener("skr-associate-deleted", handleGlobalAssociateDeleted);
+
+    return () => {
+      window.removeEventListener("skr-associate-added", handleGlobalAssociateAdded);
+      window.removeEventListener("skr-associate-deleted", handleGlobalAssociateDeleted);
+    };
   }, []);
 
-  // Show a temporary success toast
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Called when AddAssociateModal successfully creates an associate
   const handleAssociateCreated = (newAssoc: AssociateItem) => {
     setAssociates((prev) => {
-      const updated = [newAssoc, ...prev.filter((a) => a.memberId !== newAssoc.memberId)];
+      const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
+      const updated = [newAssoc, ...prev.filter((a) => (a.memberId || "").toUpperCase() !== cleanMemberId)];
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch (e) {}
@@ -78,10 +108,13 @@ export default function AssociatesManager({
     showToast(`Associate ${newAssoc.name} (${newAssoc.memberId}) added to the list!`);
   };
 
-  // Called when an associate is deleted
   const handleAssociateDeleted = (id: string, memberId: string) => {
     setAssociates((prev) => {
-      const updated = prev.filter((a) => a.id !== id && a.memberId !== memberId);
+      const updated = prev.filter((a) => {
+        if (id && a.id === id) return false;
+        if (memberId && (a.memberId || "").toUpperCase() === (memberId || "").toUpperCase()) return false;
+        return true;
+      });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch (e) {}
@@ -90,7 +123,6 @@ export default function AssociatesManager({
     showToast("Associate removed successfully.");
   };
 
-  // Called when status or rank is changed
   const handleAssociateUpdated = (id: string, updates: Partial<AssociateItem>) => {
     setAssociates((prev) => {
       const updated = prev.map((a) => (a.id === id ? { ...a, ...updates } : a));
@@ -101,7 +133,6 @@ export default function AssociatesManager({
     });
   };
 
-  // Filter list
   const filtered = associates.filter((assoc) => {
     const matchSearch =
       assoc.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -130,7 +161,7 @@ export default function AssociatesManager({
             <CheckCircle2 size={18} />
             <span className="font-semibold">{toast}</span>
           </div>
-          <button onClick={() => setToast(null)} className="text-white/80 hover:text-white text-xs">
+          <button type="button" onClick={() => setToast(null)} className="text-white/80 hover:text-white text-xs cursor-pointer">
             ✕
           </button>
         </div>
@@ -171,7 +202,7 @@ export default function AssociatesManager({
           <select
             value={rankFilter}
             onChange={(e) => setRankFilter(e.target.value)}
-            className="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white outline-none w-full sm:w-auto"
+            className="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white outline-none w-full sm:w-auto cursor-pointer"
           >
             <option value="ALL">All Ranks</option>
             <option value="Client Adviser">Client Adviser</option>

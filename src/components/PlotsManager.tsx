@@ -15,7 +15,7 @@ export interface PlotItem {
   pricePerGaj: number;
   totalPrice: number;
   status: string;
-  sale?: { buyerName: string; soldBy: { name: string; memberId: string } } | null;
+  sale?: { buyerName: string; soldBy?: { name: string; memberId: string } } | null;
   createdAt?: string | Date;
 }
 
@@ -37,6 +37,7 @@ export default function PlotsManager({
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [toast, setToast] = useState<string | null>(null);
 
+  // Sync with persistent browser storage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem(PLOT_STORAGE_KEY);
@@ -45,13 +46,46 @@ export default function PlotsManager({
         if (Array.isArray(localList) && localList.length > 0) {
           setPlots((prev) => {
             const map = new Map<string, PlotItem>();
-            prev.forEach((item) => map.set(item.plotNumber || item.id, item));
-            localList.forEach((item) => map.set(item.plotNumber || item.id, item));
+            prev.forEach((item) => map.set((item.plotNumber || item.id).toUpperCase(), item));
+            localList.forEach((item) => map.set((item.plotNumber || item.id).toUpperCase(), item));
             return Array.from(map.values());
           });
         }
       }
     } catch (e) {}
+
+    // Listen to global plot add/delete events from anywhere in the app
+    const handleGlobalPlotAdded = (e: any) => {
+      const newPlot = e.detail;
+      if (newPlot) {
+        setPlots((prev) => {
+          const cleanPlotNumber = (newPlot.plotNumber || "").toUpperCase();
+          const updated = [newPlot, ...prev.filter((p) => (p.plotNumber || "").toUpperCase() !== cleanPlotNumber)];
+          return updated;
+        });
+        showToast(`Plot ${newPlot.plotNumber} added to the inventory!`);
+      }
+    };
+
+    const handleGlobalPlotDeleted = (e: any) => {
+      const { id, plotNumber } = e.detail || {};
+      setPlots((prev) =>
+        prev.filter((p) => {
+          if (id && p.id === id) return false;
+          if (plotNumber && (p.plotNumber || "").toUpperCase() === (plotNumber || "").toUpperCase()) return false;
+          return true;
+        })
+      );
+      showToast("Plot removed successfully.");
+    };
+
+    window.addEventListener("skr-plot-added", handleGlobalPlotAdded);
+    window.addEventListener("skr-plot-deleted", handleGlobalPlotDeleted);
+
+    return () => {
+      window.removeEventListener("skr-plot-added", handleGlobalPlotAdded);
+      window.removeEventListener("skr-plot-deleted", handleGlobalPlotDeleted);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -61,7 +95,8 @@ export default function PlotsManager({
 
   const handlePlotCreated = (newPlot: PlotItem) => {
     setPlots((prev) => {
-      const updated = [newPlot, ...prev.filter((p) => p.plotNumber !== newPlot.plotNumber)];
+      const cleanPlotNumber = (newPlot.plotNumber || "").toUpperCase();
+      const updated = [newPlot, ...prev.filter((p) => (p.plotNumber || "").toUpperCase() !== cleanPlotNumber)];
       try {
         localStorage.setItem(PLOT_STORAGE_KEY, JSON.stringify(updated));
       } catch (e) {}
@@ -72,7 +107,11 @@ export default function PlotsManager({
 
   const handlePlotDeleted = (id: string, plotNumber: string) => {
     setPlots((prev) => {
-      const updated = prev.filter((p) => p.id !== id && p.plotNumber !== plotNumber);
+      const updated = prev.filter((p) => {
+        if (id && p.id === id) return false;
+        if (plotNumber && (p.plotNumber || "").toUpperCase() === (plotNumber || "").toUpperCase()) return false;
+        return true;
+      });
       try {
         localStorage.setItem(PLOT_STORAGE_KEY, JSON.stringify(updated));
       } catch (e) {}
@@ -112,7 +151,7 @@ export default function PlotsManager({
             <CheckCircle2 size={18} />
             <span className="font-semibold">{toast}</span>
           </div>
-          <button onClick={() => setToast(null)} className="text-white/80 hover:text-white text-xs">
+          <button type="button" onClick={() => setToast(null)} className="text-white/80 hover:text-white text-xs cursor-pointer">
             ✕
           </button>
         </div>
@@ -150,7 +189,7 @@ export default function PlotsManager({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white outline-none w-full sm:w-auto"
+            className="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white outline-none w-full sm:w-auto cursor-pointer"
           >
             <option value="ALL">All Statuses</option>
             <option value="AVAILABLE">Available</option>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusCircle, X, RefreshCw } from "lucide-react";
 
+const PLOT_STORAGE_KEY = "shreekarni_custom_plots_v1";
+
 export default function AddPlotModal({
   onSuccess,
 }: {
@@ -70,6 +72,20 @@ export default function AddPlotModal({
         status: form.status,
       };
 
+      // 1. Save directly to persistent localStorage so it never disappears on Vercel
+      try {
+        const stored = localStorage.getItem(PLOT_STORAGE_KEY);
+        const list = stored ? JSON.parse(stored) : [];
+        const updated = [createdPlot, ...list.filter((p: any) => p.plotNumber !== createdPlot.plotNumber)];
+        localStorage.setItem(PLOT_STORAGE_KEY, JSON.stringify(updated));
+      } catch (e) {}
+
+      // 2. Dispatch global event to instantly update every plots table in real-time
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("skr-plot-added", { detail: createdPlot }));
+      }
+
+      // 3. Callback if supplied
       if (onSuccess) {
         onSuccess(createdPlot);
       }
@@ -78,7 +94,7 @@ export default function AddPlotModal({
       setTimeout(() => {
         setIsOpen(false);
         router.refresh();
-      }, 1000);
+      }, 700);
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {
@@ -89,8 +105,9 @@ export default function AddPlotModal({
   return (
     <>
       <button
+        type="button"
         onClick={handleOpen}
-        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-xs transition"
+        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-xs transition cursor-pointer"
       >
         <PlusCircle size={16} />
         <span>+ Add Plot</span>
@@ -106,6 +123,7 @@ export default function AddPlotModal({
                 <h3 className="font-semibold text-lg">Add New Plot Entry</h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
                 className="text-gray-400 hover:text-white transition"
               >

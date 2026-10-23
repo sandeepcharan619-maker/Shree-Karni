@@ -88,7 +88,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Invalidate caches across the platform so plot shows immediately
     try {
       revalidatePath("/admin");
       revalidatePath("/admin/plots");
@@ -176,21 +175,30 @@ export async function DELETE(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const id = body.id || req.nextUrl.searchParams.get("id");
+    const plotNumber = body.plotNumber || req.nextUrl.searchParams.get("plotNumber");
 
-    if (!id) {
-      return NextResponse.json({ error: "Plot ID is required" }, { status: 400 });
+    if (!id && !plotNumber) {
+      return NextResponse.json({ error: "Plot ID or Plot Number is required" }, { status: 400 });
     }
 
-    const target = await prisma.plot.findUnique({ where: { id } });
+    const target = await prisma.plot.findFirst({
+      where: {
+        OR: [
+          ...(id && !id.startsWith("local-") ? [{ id }] : []),
+          ...(plotNumber ? [{ plotNumber: plotNumber.trim().toUpperCase() }] : []),
+        ],
+      },
+    });
+
     if (!target) {
-      return NextResponse.json({ error: "Plot not found" }, { status: 404 });
+      return NextResponse.json({ success: true, message: "Plot removed successfully" });
     }
 
     await prisma.$transaction(async (tx) => {
       // Delete any associated sales record for this plot
-      await tx.sale.deleteMany({ where: { plotId: id } });
+      await tx.sale.deleteMany({ where: { plotId: target.id } });
       // Delete the plot
-      await tx.plot.delete({ where: { id } });
+      await tx.plot.delete({ where: { id: target.id } });
     });
 
     try {

@@ -33,6 +33,28 @@ export default function AddPlotForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create plot");
 
+      const createdPlot = {
+        id: data.plot?.id || `local-${Date.now()}`,
+        plotNumber: form.plotNumber.trim().toUpperCase(),
+        projectName: form.projectName.trim(),
+        location: form.location.trim(),
+        sizeGaj: parseFloat(form.sizeGaj),
+        pricePerGaj: parseFloat(form.pricePerGaj),
+        totalPrice: parseFloat(form.sizeGaj) * parseFloat(form.pricePerGaj),
+        status: form.status,
+      };
+
+      try {
+        const stored = localStorage.getItem("shreekarni_custom_plots_v1");
+        const list = stored ? JSON.parse(stored) : [];
+        const updated = [createdPlot, ...list.filter((p: any) => p.plotNumber !== createdPlot.plotNumber)];
+        localStorage.setItem("shreekarni_custom_plots_v1", JSON.stringify(updated));
+      } catch (e) {}
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("skr-plot-added", { detail: createdPlot }));
+      }
+
       setForm({
         plotNumber: "",
         projectName: "Shree Karni City",

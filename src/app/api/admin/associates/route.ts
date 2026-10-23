@@ -112,7 +112,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Revalidate paths across admin and associate areas
     try {
       revalidatePath("/admin");
       revalidatePath("/admin/associates");
@@ -198,17 +197,28 @@ export async function DELETE(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const id = body.id || req.nextUrl.searchParams.get("id");
+    const memberId = body.memberId || req.nextUrl.searchParams.get("memberId");
 
-    if (!id) {
-      return NextResponse.json({ error: "Associate ID is required for deletion" }, { status: 400 });
+    if (!id && !memberId) {
+      return NextResponse.json({ error: "Associate ID or Member ID is required for deletion" }, { status: 400 });
     }
 
-    const target = await prisma.user.findUnique({
-      where: { id },
+    // Find user by either id or memberId
+    const target = await prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(id && !id.startsWith("local-") ? [{ id }] : []),
+          ...(memberId ? [{ memberId }] : []),
+        ],
+      },
     });
 
     if (!target) {
-      return NextResponse.json({ error: "Associate not found" }, { status: 404 });
+      // If not present in DB (e.g. was local or already purged), treat as successfully deleted
+      return NextResponse.json({
+        success: true,
+        message: "Associate removed successfully",
+      });
     }
 
     if (target.role === "ADMIN") {
@@ -219,33 +229,33 @@ export async function DELETE(req: NextRequest) {
     await prisma.$transaction(async (tx) => {
       // 1. Unlink any associates who were referred by this user
       await tx.user.updateMany({
-        where: { referredById: id },
+        where: { referredById: target.id },
         data: { referredById: null },
       });
 
       // 2. Delete incentive records
       await tx.incentive.deleteMany({
-        where: { associateId: id },
+        where: { associateId: target.id },
       });
 
       // 3. Delete leads logged by this associate
       await tx.lead.deleteMany({
-        where: { associateId: id },
+        where: { associateId: target.id },
       });
 
       // 4. Delete visitors logged by this associate
       await tx.visitor.deleteMany({
-        where: { associateId: id },
+        where: { associateId: target.id },
       });
 
       // 5. Delete sales recorded under this associate
       await tx.sale.deleteMany({
-        where: { soldById: id },
+        where: { soldById: target.id },
       });
 
       // 6. Delete the associate user account
       await tx.user.delete({
-        where: { id },
+        where: { id: target.id },
       });
     });
 

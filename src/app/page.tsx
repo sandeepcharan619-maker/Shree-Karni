@@ -23,6 +23,7 @@ import InquiryForm from "@/components/InquiryForm";
 import NavbarAuth from "@/components/NavbarAuth";
 import HeroAuthButtons from "@/components/HeroAuthButtons";
 import AssociateSectionButtons from "@/components/AssociateSectionButtons";
+import FeaturedPlots from "@/components/FeaturedPlots";
 
 const DEFAULT_PLOTS = [
   {
@@ -249,77 +250,7 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plots.map((plot) => (
-              <div
-                key={plot.id}
-                className="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col justify-between"
-              >
-                <div>
-                  {/* Card Header Tag */}
-                  <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold text-yellow-400 uppercase tracking-wider">
-                        {plot.projectName}
-                      </span>
-                      <h3 className="text-lg font-bold">{plot.plotNumber}</h3>
-                    </div>
-                    <StatusBadge status={plot.status} />
-                  </div>
-
-                  {/* Details */}
-                  <div className="p-5 space-y-3">
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <MapPin size={14} className="text-slate-400" />
-                      <span>{plot.location}</span>
-                    </div>
-
-                    <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-3 text-sm">
-                      <div className="bg-gray-50 p-2.5 rounded-lg">
-                        <span className="text-xs text-gray-400 block">Plot Size</span>
-                        <span className="font-bold text-slate-800 text-base">{plot.sizeGaj} GAJ</span>
-                      </div>
-                      <div className="bg-gray-50 p-2.5 rounded-lg">
-                        <span className="text-xs text-gray-400 block">Rate / GAJ</span>
-                        <span className="font-bold text-slate-800 text-base">₹{plot.pricePerGaj.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-2 flex items-baseline justify-between">
-                      <span className="text-xs text-gray-500">Total Valuation</span>
-                      <span className="text-xl font-extrabold text-blue-700">
-                        ₹{plot.totalPrice.toLocaleString()}
-                      </span>
-                    </div>
-
-                    <div className="pt-2 flex items-center gap-2 text-[11px] text-gray-500">
-                      <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded">
-                        <CheckCircle2 size={11} /> 40ft Main Road
-                      </span>
-                      <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded">
-                        <CheckCircle2 size={11} /> Ready Registry
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-gray-50/80 border-t border-gray-100 flex items-center gap-2">
-                  <Link
-                    href="#contact"
-                    className="flex-1 text-center py-2 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition"
-                  >
-                    Inquire Now
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="py-2 px-3 rounded-lg border border-gray-300 text-gray-700 text-xs font-medium hover:bg-white transition"
-                  >
-                    Associate Sell
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+          <FeaturedPlots initialPlots={plots} />
         </div>
       </section>
 

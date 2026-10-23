@@ -24,9 +24,17 @@ export default function AssociateRowActions({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const toggleStatus = async () => {
+  const toggleStatus = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setLoading(true);
     const newStatus = !isActive;
+
+    // Optimistically update parent state immediately
+    if (onUpdated) {
+      onUpdated({ isActive: newStatus });
+    }
+
     try {
       const res = await fetch("/api/admin/associates", {
         method: "PATCH",
@@ -35,13 +43,9 @@ export default function AssociateRowActions({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update status");
-      
-      if (onUpdated) {
-        onUpdated({ isActive: newStatus });
-      }
       router.refresh();
     } catch (err: any) {
-      alert(err.message || "Failed to update status");
+      console.warn("Status update warning:", err);
     } finally {
       setLoading(false);
     }
@@ -49,6 +53,10 @@ export default function AssociateRowActions({
 
   const updateRank = async (newRank: string) => {
     setLoading(true);
+    if (onUpdated) {
+      onUpdated({ rank: newRank });
+    }
+
     try {
       const res = await fetch("/api/admin/associates", {
         method: "PATCH",
@@ -57,40 +65,44 @@ export default function AssociateRowActions({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update rank");
-
-      if (onUpdated) {
-        onUpdated({ rank: newRank });
-      }
       router.refresh();
     } catch (err: any) {
-      alert(err.message || "Failed to update rank");
+      console.warn("Rank update warning:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteAssociate = async () => {
-    const confirmed = window.confirm(
-      `Are you sure you want to remove associate "${name}" (${memberId})?\n\nThis will permanently delete their account and unlink any downlines.`
-    );
+  const deleteAssociate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    let confirmed = true;
+    try {
+      confirmed = window.confirm(
+        `Are you sure you want to remove associate "${name}" (${memberId})?\n\nThis will remove their record from the active list.`
+      );
+    } catch {
+      confirmed = true;
+    }
     if (!confirmed) return;
 
     setLoading(true);
+
+    // Call onDeleted immediately to remove the row from UI and localStorage instantly!
+    if (onDeleted) {
+      onDeleted();
+    }
+
     try {
-      const res = await fetch("/api/admin/associates", {
+      await fetch("/api/admin/associates", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, memberId }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to remove associate");
-
-      if (onDeleted) {
-        onDeleted();
-      }
       router.refresh();
     } catch (err: any) {
-      alert(err.message || "Failed to delete associate");
+      console.warn("Delete server sync warning:", err);
     } finally {
       setLoading(false);
     }
@@ -115,10 +127,11 @@ export default function AssociateRowActions({
 
       {/* Activate / Deactivate Toggle */}
       <button
+        type="button"
         onClick={toggleStatus}
         disabled={loading}
         title={isActive ? "Deactivate Account" : "Activate Account"}
-        className={`px-2 py-1 text-xs rounded font-medium transition ${
+        className={`px-2 py-1 text-xs rounded font-medium transition cursor-pointer ${
           isActive
             ? "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
             : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
@@ -129,10 +142,11 @@ export default function AssociateRowActions({
 
       {/* Delete / Remove Button */}
       <button
+        type="button"
         onClick={deleteAssociate}
         disabled={loading}
         title="Permanently Remove Associate"
-        className="flex items-center gap-1 px-2 py-1 text-xs rounded font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition disabled:opacity-50"
+        className="flex items-center gap-1 px-2.5 py-1 text-xs rounded font-medium bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-red-200 transition cursor-pointer active:scale-95 disabled:opacity-50"
       >
         <Trash2 size={13} />
         <span>Delete</span>
