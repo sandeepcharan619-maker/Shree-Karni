@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 
 export default function AssociateRowActions({
   id,
+  name,
+  memberId,
   isActive,
   currentRank,
 }: {
   id: string;
+  name: string;
+  memberId: string;
   isActive: boolean;
   currentRank: string;
 }) {
@@ -18,14 +23,16 @@ export default function AssociateRowActions({
   const toggleStatus = async () => {
     setLoading(true);
     try {
-      await fetch("/api/admin/associates", {
+      const res = await fetch("/api/admin/associates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, isActive: !isActive }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update status");
       router.refresh();
-    } catch {
-      alert("Failed to update status");
+    } catch (err: any) {
+      alert(err.message || "Failed to update status");
     } finally {
       setLoading(false);
     }
@@ -34,14 +41,40 @@ export default function AssociateRowActions({
   const updateRank = async (newRank: string) => {
     setLoading(true);
     try {
-      await fetch("/api/admin/associates", {
+      const res = await fetch("/api/admin/associates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, rank: newRank }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update rank");
       router.refresh();
-    } catch {
-      alert("Failed to update rank");
+    } catch (err: any) {
+      alert(err.message || "Failed to update rank");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteAssociate = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to remove associate "${name}" (${memberId})?\n\nThis will permanently delete their account and unlink any downlines.`
+    );
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/associates", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to remove associate");
+
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete associate");
     } finally {
       setLoading(false);
     }
@@ -49,11 +82,13 @@ export default function AssociateRowActions({
 
   return (
     <div className="flex items-center gap-2">
+      {/* Rank selector */}
       <select
         value={currentRank}
         onChange={(e) => updateRank(e.target.value)}
         disabled={loading}
-        className="text-xs border border-gray-300 rounded px-2 py-1 outline-none"
+        title="Change Associate Rank"
+        className="text-xs border border-gray-300 rounded px-2 py-1 outline-none bg-white hover:border-gray-400 focus:ring-1 focus:ring-blue-500"
       >
         <option value="Client Adviser">Client Adviser</option>
         <option value="Senior Adviser">Senior Adviser</option>
@@ -62,16 +97,29 @@ export default function AssociateRowActions({
         <option value="Director">Director</option>
       </select>
 
+      {/* Activate / Deactivate Toggle */}
       <button
         onClick={toggleStatus}
         disabled={loading}
+        title={isActive ? "Deactivate Account" : "Activate Account"}
         className={`px-2 py-1 text-xs rounded font-medium transition ${
           isActive
-            ? "bg-red-50 text-red-600 hover:bg-red-100"
-            : "bg-green-50 text-green-600 hover:bg-green-100"
-        }`}
+            ? "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+            : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+        } disabled:opacity-50`}
       >
         {isActive ? "Deactivate" : "Activate"}
+      </button>
+
+      {/* Delete / Remove Button */}
+      <button
+        onClick={deleteAssociate}
+        disabled={loading}
+        title="Permanently Remove Associate"
+        className="flex items-center gap-1 px-2 py-1 text-xs rounded font-medium bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 transition disabled:opacity-50"
+      >
+        <Trash2 size={13} />
+        <span>Delete</span>
       </button>
     </div>
   );

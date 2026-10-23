@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generateNextMemberId } from "@/lib/memberId";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -14,9 +15,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const normalizedUsername = username.toLowerCase().trim();
+
     // Check if username is already taken
-    const existing = await prisma.user.findUnique({
-      where: { username: username.toLowerCase().trim() },
+    const existing = await prisma.user.findFirst({
+      where: { username: normalizedUsername },
     });
 
     if (existing) {
@@ -31,9 +34,7 @@ export async function POST(req: NextRequest) {
     if (referralCode && referralCode.trim()) {
       const referrer = await prisma.user.findFirst({
         where: {
-          memberId: {
-            equals: referralCode.trim().toUpperCase(),
-          },
+          memberId: referralCode.trim().toUpperCase(),
         },
       });
       if (referrer) {
@@ -42,15 +43,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate unique member ID
-    const count = await prisma.user.count({ where: { role: "ASSOCIATE" } });
-    const memberId = `SKR${String(count + 1).padStart(5, "0")}`;
-
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const memberId = await generateNextMemberId();
+    const hashedPassword = await bcrypt.hash(password.trim(), 10);
 
     const newUser = await prisma.user.create({
       data: {
         name: name.trim(),
-        username: username.toLowerCase().trim(),
+        username: normalizedUsername,
         email: email ? email.trim() : null,
         phone: phone.trim(),
         password: hashedPassword,
@@ -70,7 +69,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Public registration error:", error);
     return NextResponse.json(
-      { error: "Failed to create account. Please try again." },
+      { error: error?.message || "Failed to create account. Please try again." },
       { status: 500 }
     );
   }

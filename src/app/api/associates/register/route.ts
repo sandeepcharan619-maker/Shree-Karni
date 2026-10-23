@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { generateNextMemberId } from "@/lib/memberId";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -22,23 +23,24 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if username exists
-    const existing = await prisma.user.findUnique({ where: { username } });
+    const normalizedUsername = username.toLowerCase().trim();
+    const existing = await prisma.user.findFirst({
+      where: { username: normalizedUsername },
+    });
     if (existing) {
       return NextResponse.json({ error: "Username already taken" }, { status: 400 });
     }
 
-    // Generate unique member ID
-    const count = await prisma.user.count({ where: { role: "ASSOCIATE" } });
-    const memberId = `SKR${String(count + 1).padStart(5, "0")}`;
-
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Generate guaranteed unique member ID
+    const memberId = await generateNextMemberId();
+    const hashedPassword = await bcrypt.hash(password.trim(), 10);
 
     const user = await prisma.user.create({
       data: {
-        name,
-        username,
-        email: email || null,
-        phone,
+        name: name.trim(),
+        username: normalizedUsername,
+        email: email ? email.trim() : null,
+        phone: phone.trim(),
         password: hashedPassword,
         memberId,
         referredById: session.user.role === "ADMIN" ? null : session.user.id,
@@ -51,6 +53,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("Register error:", error);
-    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Registration failed" }, { status: 500 });
   }
 }

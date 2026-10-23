@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/StatusBadge";
 import Link from "next/link";
 import AssociateRowActions from "./AssociateRowActions";
+import AddAssociateModal from "./AddAssociateModal";
 
 export default async function AdminAssociatesPage() {
   const associates = await prisma.user.findMany({
@@ -13,19 +14,30 @@ export default async function AdminAssociatesPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const sponsorOptions = associates.map((a) => ({
+    id: a.id,
+    name: a.name,
+    memberId: a.memberId,
+  }));
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">All Associates</h1>
-          <p className="text-sm text-gray-500">Manage all sales team members and downlines</p>
+          <p className="text-sm text-gray-500">
+            Manage sales team associates, downlines, rank promotions, and deletions
+          </p>
         </div>
-        <Link
-          href="/admin/associates/create"
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
-        >
-          + Add New Associate
-        </Link>
+        <div className="flex items-center gap-3">
+          <AddAssociateModal sponsors={sponsorOptions} />
+          <Link
+            href="/admin/associates/create"
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium underline"
+          >
+            Full Page Form →
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -48,8 +60,8 @@ export default async function AdminAssociatesPage() {
             <tbody className="divide-y divide-gray-100">
               {associates.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-6 text-center text-gray-500">
-                    No associates registered yet.
+                  <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
+                    No associates registered yet. Click &ldquo;+ Add New Associate&rdquo; above to create one.
                   </td>
                 </tr>
               ) : (
@@ -72,7 +84,13 @@ export default async function AdminAssociatesPage() {
                       <StatusBadge status={assoc.isActive ? "ACTIVE" : "INACTIVE"} />
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <AssociateRowActions id={assoc.id} isActive={assoc.isActive} currentRank={assoc.rank} />
+                      <AssociateRowActions
+                        id={assoc.id}
+                        name={assoc.name}
+                        memberId={assoc.memberId}
+                        isActive={assoc.isActive}
+                        currentRank={assoc.rank}
+                      />
                     </td>
                   </tr>
                 ))

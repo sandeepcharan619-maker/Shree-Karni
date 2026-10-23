@@ -29,9 +29,24 @@ export const authOptions: NextAuthOptions = {
           credentials.password === "admin123"
         ) {
           try {
-            const dbAdmin = await prisma.user.findFirst({
+            let dbAdmin = await prisma.user.findFirst({
               where: { role: "ADMIN" },
             });
+            if (!dbAdmin) {
+              const hash = await bcrypt.hash("admin123", 10);
+              dbAdmin = await prisma.user.create({
+                data: {
+                  username: "admin",
+                  password: hash,
+                  name: "Administrator",
+                  email: "realestatekshreekarni@gmail.com",
+                  role: "ADMIN",
+                  rank: "Administrator",
+                  memberId: "SKRADMIN",
+                  walletBalance: 0,
+                },
+              });
+            }
             if (dbAdmin) {
               return {
                 id: dbAdmin.id,
@@ -42,14 +57,14 @@ export const authOptions: NextAuthOptions = {
                 username: dbAdmin.username,
               };
             }
-          } catch {
-            // If DB query fails during startup, return master admin session
+          } catch (e) {
+            console.error("Admin auto-seed error:", e);
           }
 
           return {
             id: "master-admin",
             name: "Administrator",
-            email: "admin@shreekarnirealestate.in",
+            email: "realestatekshreekarni@gmail.com",
             role: "ADMIN",
             memberId: "SKRADMIN",
             username: "admin",
