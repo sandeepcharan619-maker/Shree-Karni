@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusCircle, X, RefreshCw } from "lucide-react";
 
-export default function AddPlotModal() {
+export default function AddPlotModal({
+  onSuccess,
+}: {
+  onSuccess?: (newPlot: any) => void;
+} = {}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,11 +59,26 @@ export default function AddPlotModal() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create plot");
 
-      setSuccess(`Plot ${data.plot?.plotNumber || form.plotNumber} added successfully!`);
+      const createdPlot = {
+        id: data.plot?.id || `local-${Date.now()}`,
+        plotNumber: form.plotNumber.trim().toUpperCase(),
+        projectName: form.projectName.trim(),
+        location: form.location.trim(),
+        sizeGaj: parseFloat(form.sizeGaj),
+        pricePerGaj: parseFloat(form.pricePerGaj),
+        totalPrice: parseFloat(form.sizeGaj) * parseFloat(form.pricePerGaj),
+        status: form.status,
+      };
+
+      if (onSuccess) {
+        onSuccess(createdPlot);
+      }
+
+      setSuccess(`Plot ${createdPlot.plotNumber} added successfully!`);
       setTimeout(() => {
         setIsOpen(false);
         router.refresh();
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {

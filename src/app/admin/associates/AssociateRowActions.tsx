@@ -10,26 +10,35 @@ export default function AssociateRowActions({
   memberId,
   isActive,
   currentRank,
+  onDeleted,
+  onUpdated,
 }: {
   id: string;
   name: string;
   memberId: string;
   isActive: boolean;
   currentRank: string;
+  onDeleted?: () => void;
+  onUpdated?: (updates: { isActive?: boolean; rank?: string }) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const toggleStatus = async () => {
     setLoading(true);
+    const newStatus = !isActive;
     try {
       const res = await fetch("/api/admin/associates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, isActive: !isActive }),
+        body: JSON.stringify({ id, isActive: newStatus }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update status");
+      
+      if (onUpdated) {
+        onUpdated({ isActive: newStatus });
+      }
       router.refresh();
     } catch (err: any) {
       alert(err.message || "Failed to update status");
@@ -48,6 +57,10 @@ export default function AssociateRowActions({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update rank");
+
+      if (onUpdated) {
+        onUpdated({ rank: newRank });
+      }
       router.refresh();
     } catch (err: any) {
       alert(err.message || "Failed to update rank");
@@ -72,6 +85,9 @@ export default function AssociateRowActions({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to remove associate");
 
+      if (onDeleted) {
+        onDeleted();
+      }
       router.refresh();
     } catch (err: any) {
       alert(err.message || "Failed to delete associate");

@@ -12,8 +12,10 @@ interface SponsorOption {
 
 export default function AddAssociateModal({
   sponsors = [],
+  onSuccess,
 }: {
   sponsors: SponsorOption[];
+  onSuccess?: (newAssoc: any) => void;
 }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -50,7 +52,6 @@ export default function AddAssociateModal({
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
-    // Auto-generate username from name if username is currently empty or untouched
     const suggestedUsername = name
       .toLowerCase()
       .trim()
@@ -84,10 +85,28 @@ export default function AddAssociateModal({
       }
 
       setSuccess(`Associate created successfully! Assigned Member ID: ${data.memberId}`);
+
+      const createdAssoc = {
+        id: data.user?.id || `local-${Date.now()}`,
+        name: form.name.trim(),
+        username: form.username.trim(),
+        memberId: data.memberId,
+        phone: form.phone.trim(),
+        rank: form.rank,
+        isActive: true,
+        walletBalance: form.walletBalance || 0,
+        referredBy: sponsors.find((s) => s.id === form.referredById) || null,
+        _count: { referrals: 0, sales: 0 },
+      };
+
+      if (onSuccess) {
+        onSuccess(createdAssoc);
+      }
+
       setTimeout(() => {
         setIsOpen(false);
         router.refresh();
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {

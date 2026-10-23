@@ -72,10 +72,30 @@ export default function CreateAssociateAdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create associate");
 
+      const createdAssoc = {
+        id: data.user?.id || `local-${Date.now()}`,
+        name: form.name.trim(),
+        username: form.username.trim(),
+        memberId: data.memberId,
+        phone: form.phone.trim(),
+        rank: form.rank,
+        isActive: true,
+        walletBalance: form.walletBalance || 0,
+        referredBy: sponsors.find((s) => s.id === form.referredById) || null,
+        _count: { referrals: 0, sales: 0 },
+      };
+
+      try {
+        const stored = localStorage.getItem("shreekarni_custom_associates_v1");
+        const list = stored ? JSON.parse(stored) : [];
+        const updated = [createdAssoc, ...list.filter((a: any) => a.memberId !== data.memberId)];
+        localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
+      } catch (e) {}
+
       setSuccess(`Associate created successfully! Assigned Member ID: ${data.memberId}`);
       setTimeout(() => {
         router.push("/admin/associates");
-      }, 1500);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {

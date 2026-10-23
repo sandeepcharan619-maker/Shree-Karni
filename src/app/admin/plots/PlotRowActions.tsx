@@ -8,10 +8,14 @@ export default function PlotRowActions({
   id,
   plotNumber,
   currentStatus,
+  onDeleted,
+  onUpdated,
 }: {
   id: string;
   plotNumber: string;
   currentStatus: string;
+  onDeleted?: () => void;
+  onUpdated?: (newStatus: string) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -26,6 +30,10 @@ export default function PlotRowActions({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update status");
+
+      if (onUpdated) {
+        onUpdated(newStatus);
+      }
       router.refresh();
     } catch (err: any) {
       alert(err.message || "Failed to update plot status");
@@ -49,6 +57,10 @@ export default function PlotRowActions({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete plot");
+
+      if (onDeleted) {
+        onDeleted();
+      }
       router.refresh();
     } catch (err: any) {
       alert(err.message || "Failed to delete plot");

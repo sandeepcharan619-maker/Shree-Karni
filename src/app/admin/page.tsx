@@ -1,11 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import DashboardCard from "@/components/DashboardCard";
 import Link from "next/link";
-import StatusBadge from "@/components/StatusBadge";
+import AssociatesManager from "@/components/AssociatesManager";
+import PlotsManager from "@/components/PlotsManager";
 import AddPlotModal from "./plots/AddPlotModal";
 import AddAssociateModal from "./associates/AddAssociateModal";
-import AssociateRowActions from "./associates/AssociateRowActions";
-import PlotRowActions from "./plots/PlotRowActions";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,15 +29,14 @@ export default async function AdminDashboard() {
     _sum: { amount: true },
   });
 
-  // Recent Associates
+  // Fetch all associates for the manager
   const associates = await prisma.user.findMany({
     where: { role: "ASSOCIATE" },
     include: {
-      referredBy: { select: { name: true, memberId: true } },
+      referredBy: { select: { id: true, name: true, memberId: true } },
       _count: { select: { referrals: true, sales: true } },
     },
     orderBy: { createdAt: "desc" },
-    take: 8,
   });
 
   const sponsorOptions = associates.map((a) => ({
@@ -47,10 +45,16 @@ export default async function AdminDashboard() {
     memberId: a.memberId,
   }));
 
-  // Recent Plots
+  // Fetch all plots for the manager
   const plots = await prisma.plot.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 8,
+    include: {
+      sale: {
+        include: {
+          soldBy: { select: { name: true, memberId: true } },
+        },
+      },
+    },
+    orderBy: { plotNumber: "asc" },
   });
 
   // Recent Sales
@@ -65,7 +69,7 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Page Header with Action Modals */}
+      {/* Top Banner with Quick Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-xl shadow-xs border border-gray-200">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Admin Control Center</h1>
@@ -119,152 +123,25 @@ export default async function AdminDashboard() {
         />
       </div>
 
-      {/* Associates Network Section */}
-      <div className="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden">
-        <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Associates Network ({totalAssociates})</h2>
-            <p className="text-xs text-gray-500">
-              Active members, ranks, downlines, and direct actions
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <AddAssociateModal sponsors={sponsorOptions} />
-            <Link
-              href="/admin/associates"
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800 underline"
-            >
-              View All Associates →
-            </Link>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b text-xs font-semibold text-gray-600 uppercase">
-                <th className="px-4 py-3 text-left">Member ID</th>
-                <th className="px-4 py-3 text-left">Associate Name</th>
-                <th className="px-4 py-3 text-left">Phone</th>
-                <th className="px-4 py-3 text-left">Rank</th>
-                <th className="px-4 py-3 text-left">Referred By</th>
-                <th className="px-4 py-3 text-left">Downline</th>
-                <th className="px-4 py-3 text-left">Sales</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {associates.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500 text-sm">
-                    No associates registered yet. Click &ldquo;+ Add New Associate&rdquo; above to register one.
-                  </td>
-                </tr>
-              ) : (
-                associates.map((assoc) => (
-                  <tr key={assoc.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 text-sm font-semibold text-blue-600">{assoc.memberId}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-800">{assoc.name}</div>
-                      <div className="text-xs text-gray-400">@{assoc.username}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{assoc.phone || "-"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{assoc.rank}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {assoc.referredBy ? `${assoc.referredBy.name} (${assoc.referredBy.memberId})` : "Direct"}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 font-semibold">{assoc._count.referrals}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 font-semibold">{assoc._count.sales}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <StatusBadge status={assoc.isActive ? "ACTIVE" : "INACTIVE"} />
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <AssociateRowActions
-                        id={assoc.id}
-                        name={assoc.name}
-                        memberId={assoc.memberId}
-                        isActive={assoc.isActive}
-                        currentRank={assoc.rank}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Associates Network Section with Real-Time Local & Server Sync */}
+      <div className="bg-white p-6 rounded-xl shadow-xs border border-gray-200">
+        <AssociatesManager
+          initialAssociates={associates}
+          title="All Associates Network"
+          subtitle="Real-time associate registry with instant updates, search, and status controls"
+        />
       </div>
 
-      {/* Plots Inventory Section */}
-      <div className="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden">
-        <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Plots Inventory ({totalPlots})</h2>
-            <p className="text-xs text-gray-500">
-              Live plot availability, sizes in GAJ, pricing, and status management
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <AddPlotModal />
-            <Link
-              href="/admin/plots"
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800 underline"
-            >
-              Manage All Plots →
-            </Link>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b text-xs font-semibold text-gray-600 uppercase">
-                <th className="px-4 py-3 text-left">Plot No</th>
-                <th className="px-4 py-3 text-left">Project</th>
-                <th className="px-4 py-3 text-left">Location</th>
-                <th className="px-4 py-3 text-left">Size (GAJ)</th>
-                <th className="px-4 py-3 text-left">Price/GAJ</th>
-                <th className="px-4 py-3 text-left">Total Price</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {plots.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500 text-sm">
-                    No plots registered yet. Click &ldquo;+ Add Plot&rdquo; above to add inventory.
-                  </td>
-                </tr>
-              ) : (
-                plots.map((plot) => (
-                  <tr key={plot.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 text-sm font-semibold text-blue-600">{plot.plotNumber}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{plot.projectName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{plot.location}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-800">{plot.sizeGaj} GAJ</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">₹{plot.pricePerGaj.toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-800">₹{plot.totalPrice.toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <StatusBadge status={plot.status} />
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <PlotRowActions
-                        id={plot.id}
-                        plotNumber={plot.plotNumber}
-                        currentStatus={plot.status}
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* Plots Inventory Section with Real-Time Local & Server Sync */}
+      <div className="bg-white p-6 rounded-xl shadow-xs border border-gray-200">
+        <PlotsManager
+          initialPlots={plots}
+          title="Plots Inventory Management"
+          subtitle="Manage plot inventory, prices, status, and sales assignments"
+        />
       </div>
 
-      {/* Recent Sales Table */}
+      {/* Recent Sales Activity */}
       <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
           <div>
