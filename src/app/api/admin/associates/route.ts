@@ -3,13 +3,22 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateNextMemberId } from "@/lib/memberId";
+import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+
+function isAdmin(session: any): boolean {
+  if (!session?.user) return false;
+  const role = (session.user.role || "").toUpperCase();
+  const username = (session.user.username || "").toLowerCase();
+  const memberId = (session.user.memberId || "").toUpperCase();
+  return role === "ADMIN" || username === "admin" || memberId === "SKRADMIN";
+}
 
 // GET: List all associates
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "ADMIN") {
+    if (!isAdmin(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -33,7 +42,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "ADMIN") {
+    if (!isAdmin(session)) {
       return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 401 });
     }
 
@@ -103,6 +112,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Revalidate paths across admin and associate areas
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/associates");
+      revalidatePath("/dashboard/team/direct");
+      revalidatePath("/dashboard/team/downline");
+    } catch {}
+
     return NextResponse.json({
       success: true,
       memberId: newUser.memberId,
@@ -128,7 +145,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "ADMIN") {
+    if (!isAdmin(session)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -155,6 +172,11 @@ export async function PATCH(req: NextRequest) {
       data: updateData,
     });
 
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/associates");
+    } catch {}
+
     return NextResponse.json({
       success: true,
       message: "Associate updated successfully",
@@ -170,7 +192,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "ADMIN") {
+    if (!isAdmin(session)) {
       return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 401 });
     }
 
@@ -195,7 +217,7 @@ export async function DELETE(req: NextRequest) {
 
     // Atomic cascade clean up using transaction
     await prisma.$transaction(async (tx) => {
-      // 1. Unlink any associates who were referred by this user so their accounts remain intact
+      // 1. Unlink any associates who were referred by this user
       await tx.user.updateMany({
         where: { referredById: id },
         data: { referredById: null },
@@ -216,7 +238,7 @@ export async function DELETE(req: NextRequest) {
         where: { associateId: id },
       });
 
-      // 5. Delete sales recorded under this associate (plots will revert or stay in DB)
+      // 5. Delete sales recorded under this associate
       await tx.sale.deleteMany({
         where: { soldById: id },
       });
@@ -226,6 +248,11 @@ export async function DELETE(req: NextRequest) {
         where: { id },
       });
     });
+
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/associates");
+    } catch {}
 
     return NextResponse.json({
       success: true,

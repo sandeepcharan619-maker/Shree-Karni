@@ -4,6 +4,9 @@ import Link from "next/link";
 import AssociateRowActions from "./AssociateRowActions";
 import AddAssociateModal from "./AddAssociateModal";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AdminAssociatesPage() {
   const associates = await prisma.user.findMany({
     where: { role: "ASSOCIATE" },
