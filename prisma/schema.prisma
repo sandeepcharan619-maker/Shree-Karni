@@ -28,6 +28,21 @@ model User {
   leads         Lead[]
   visitors      Visitor[]
   incentives    Incentive[]
+
+  // Extended Profile Details
+  avatarUrl       String?
+  address         String?
+  city            String?
+  state           String?
+  pincode         String?
+  bankName        String?
+  accountNumber   String?
+  ifscCode        String?
+  accountHolder   String?
+  upiId           String?
+  nomineeName     String?
+  nomineeRelation String?
+  nomineePhone    String?
 }
 
 model Plot {

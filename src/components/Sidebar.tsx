@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -38,6 +38,25 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
   const pathname = usePathname();
   const { data: session } = useSession();
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [customAvatar, setCustomAvatar] = useState<string | null>(null);
+  const [customName, setCustomName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const memberId = session?.user?.memberId || session?.user?.username || "default";
+    const syncProfile = () => {
+      try {
+        const stored = localStorage.getItem(`shreekarni_profile_${memberId.toUpperCase()}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.avatarUrl) setCustomAvatar(parsed.avatarUrl);
+          if (parsed.name) setCustomName(parsed.name);
+        }
+      } catch {}
+    };
+    syncProfile();
+    window.addEventListener("skr-profile-updated", syncProfile);
+    return () => window.removeEventListener("skr-profile-updated", syncProfile);
+  }, [session]);
 
   const isAdmin = userRole === "ADMIN" || session?.user?.role === "ADMIN";
 
@@ -105,11 +124,15 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
         {/* User Card */}
         <div className="p-4 flex items-center gap-3 border-b border-gray-100">
           <div className="w-11 h-11 rounded-full overflow-hidden bg-slate-200 border border-slate-300 flex items-center justify-center shrink-0">
-            <User size={28} className="text-slate-500" />
+            {customAvatar ? (
+              <img src={customAvatar} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <User size={28} className="text-slate-500" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-bold text-gray-800 leading-snug truncate">
-              {session?.user?.name || "Pushpendra singh charan"}
+              {customName || session?.user?.name || "Pushpendra singh charan"}
             </h4>
             <p className="text-xs text-gray-500 truncate">
               {session?.user?.memberId || "SKR00001"}
