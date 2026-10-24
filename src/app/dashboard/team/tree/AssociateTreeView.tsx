@@ -5,16 +5,17 @@ import Link from "next/link";
 import {
   UserPlus,
   Search,
-  ChevronRight,
-  ChevronDown,
-  RefreshCw,
-  Award,
+  PlusCircle,
+  X,
   Phone,
   Mail,
   Calendar,
   Users,
   ShieldCheck,
   Check,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
 } from "lucide-react";
 
 export interface AssociateNode {
@@ -74,6 +75,22 @@ export default function AssociateTreeView({
   });
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [search, setSearch] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Modal State for adding associate directly under tree
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [parentTarget, setParentTarget] = useState<AssociateNode>(currentUser);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
+
+  const [addForm, setAddForm] = useState({
+    name: "",
+    username: "",
+    phone: "",
+    email: "",
+    password: "",
+    rank: "Client Adviser",
+  });
 
   // Sync with localStorage so newly registered associates appear instantly
   useEffect(() => {
@@ -90,7 +107,6 @@ export default function AssociateTreeView({
               );
               localList.forEach((item) => {
                 const key = (item.memberId || item.id).toUpperCase();
-                // If it's referred by current user or a child
                 map.set(key, item);
               });
               return Array.from(map.values());
@@ -111,13 +127,6 @@ export default function AssociateTreeView({
   const treeData = useMemo<TreeNode>(() => {
     const rootId = currentUser.id;
     const rootMemberId = (currentUser.memberId || "").toUpperCase();
-
-    // Map associates
-    const associateMap = new Map<string, AssociateNode>();
-    allDownlines.forEach((a) => {
-      associateMap.set(a.id, a);
-      if (a.memberId) associateMap.set(a.memberId.toUpperCase(), a);
-    });
 
     const isChildOf = (child: AssociateNode, parentId: string, parentMemberId: string) => {
       if (child.id === parentId) return false;
@@ -193,13 +202,108 @@ export default function AssociateTreeView({
     setExpandedNodes({ [currentUser.id]: true });
   };
 
-  // Count total downlines recursively
   const countTotalDownline = (node: TreeNode): number => {
     let count = node.children.length;
     node.children.forEach((c) => {
       count += countTotalDownline(c);
     });
     return count;
+  };
+
+  // Open add associate modal targeting a specific parent node
+  const openAddModal = (target: AssociateNode) => {
+    setParentTarget(target);
+    setModalError("");
+    setAddForm({
+      name: "",
+      username: "",
+      phone: "",
+      email: "",
+      password: "",
+      rank: "Client Adviser",
+    });
+    setIsAddModalOpen(true);
+  };
+
+  // Submit adding associate under tree
+  const handleAddAssociate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalLoading(true);
+    setModalError("");
+
+    try {
+      const res = await fetch("/api/associates/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: addForm.name.trim(),
+          username: addForm.username.trim(),
+          phone: addForm.phone.trim(),
+          email: addForm.email?.trim() || null,
+          password: addForm.password.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to register associate");
+      }
+
+      const assignedMemberId = data.memberId || `SKR${Math.floor(10000 + Math.random() * 90000)}`;
+      const parent = parentTarget || currentUser;
+
+      const newAssociateItem: AssociateNode = data.user || {
+        id: `assoc-${Date.now()}`,
+        name: addForm.name.trim(),
+        username: addForm.username.trim(),
+        memberId: assignedMemberId,
+        phone: addForm.phone.trim(),
+        email: addForm.email?.trim() || null,
+        rank: addForm.rank || "Client Adviser",
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        referredById: parent.id,
+        referredBy: {
+          id: parent.id,
+          name: parent.name,
+          memberId: parent.memberId,
+        },
+      };
+
+      // 1. Immediately update tree downlines state
+      setAllDownlines((prev) => [newAssociateItem, ...prev]);
+
+      // 2. Persist to localStorage
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const list = stored ? JSON.parse(stored) : [];
+        list.unshift(newAssociateItem);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        window.dispatchEvent(
+          new CustomEvent("skr-associate-added", { detail: newAssociateItem })
+        );
+      } catch (err) {
+        console.warn("Storage write error:", err);
+      }
+
+      // 3. Expand parent node so child is instantly visible
+      setExpandedNodes((prev) => ({
+        ...prev,
+        [parent.id]: true,
+      }));
+
+      setToast({
+        type: "success",
+        text: `Associate "${newAssociateItem.name}" registered successfully (ID: ${assignedMemberId}) and placed under ${parent.name}!`,
+      });
+
+      setIsAddModalOpen(false);
+    } catch (err: any) {
+      setModalError(err.message || "Failed to add associate");
+    } finally {
+      setModalLoading(false);
+      setTimeout(() => setToast(null), 5000);
+    }
   };
 
   // Render tree node recursively
@@ -232,7 +336,7 @@ export default function AssociateTreeView({
               <button
                 type="button"
                 onClick={(e) => toggleExpand(node.id, e)}
-                className="w-3.5 h-3.5 border border-gray-400 bg-white text-gray-700 flex items-center justify-center text-[10px] leading-none rounded-2xs hover:bg-gray-100 transition shadow-2xs mr-1"
+                className="w-3.5 h-3.5 border border-gray-400 bg-white text-gray-700 flex items-center justify-center text-[10px] leading-none rounded-2xs hover:bg-gray-100 transition shadow-2xs mr-1 cursor-pointer"
                 title={isExpanded ? "Collapse" : "Expand"}
               >
                 {isExpanded ? "−" : "+"}
@@ -248,7 +352,7 @@ export default function AssociateTreeView({
           <div
             onClick={() => {
               setSelectedNode(node);
-              if (hasChildren) toggleExpand(node.id);
+              if (hasChildren && !isExpanded) toggleExpand(node.id);
             }}
             className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-xs transition cursor-pointer font-sans ${
               isSelected
@@ -284,6 +388,24 @@ export default function AssociateTreeView({
 
   return (
     <div className="space-y-6">
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`flex items-center gap-2 px-4 py-3 rounded-md text-sm font-medium shadow-xs border ${
+            toast.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+          ) : (
+            <AlertCircle size={16} className="text-red-600 shrink-0" />
+          )}
+          <span>{toast.text}</span>
+        </div>
+      )}
+
       {/* Top Header & Actions Bar */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-xs p-6 md:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
@@ -296,13 +418,21 @@ export default function AssociateTreeView({
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => openAddModal(selectedNode || currentUser)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#059669] hover:bg-[#047857] text-white rounded-md text-xs font-semibold shadow-xs transition cursor-pointer"
+            >
+              <UserPlus size={14} />
+              <span>+ Add Associate Under Tree</span>
+            </button>
+
             <Link
               href="/dashboard/register"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0a1628] hover:bg-[#12243e] text-white rounded-md text-xs font-semibold shadow-xs transition"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-md text-xs font-semibold transition"
             >
-              <UserPlus size={14} className="text-[#e9b04c]" />
-              <span>+ Register New Associate</span>
+              <span>Full Registration Form →</span>
             </Link>
           </div>
         </div>
@@ -324,14 +454,14 @@ export default function AssociateTreeView({
             <button
               type="button"
               onClick={expandAll}
-              className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition"
+              className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition cursor-pointer"
             >
               Expand All
             </button>
             <button
               type="button"
               onClick={collapseAll}
-              className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition"
+              className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition cursor-pointer"
             >
               Collapse All
             </button>
@@ -350,25 +480,38 @@ export default function AssociateTreeView({
             </div>
 
             {treeData.children.length === 0 && (
-              <div className="mt-8 p-4 text-center rounded border border-dashed border-gray-300 bg-white">
-                <p className="text-xs text-gray-500">
+              <div className="mt-8 p-6 text-center rounded border border-dashed border-gray-300 bg-white">
+                <p className="text-xs text-gray-500 mb-2">
                   You currently have no downline associates registered.
                 </p>
-                <Link
-                  href="/dashboard/register"
-                  className="mt-2 inline-block text-xs font-bold text-blue-600 hover:underline"
+                <button
+                  type="button"
+                  onClick={() => openAddModal(currentUser)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold transition shadow-xs cursor-pointer"
                 >
-                  Click here to register your first associate →
-                </Link>
+                  <UserPlus size={14} />
+                  <span>Add First Associate Under Your Tree</span>
+                </button>
               </div>
             )}
           </div>
 
           {/* Associate Details Sidebar Card */}
           <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-xs space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 border-b pb-2">
-              Associate Details
-            </h3>
+            <div className="flex items-center justify-between border-b pb-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                Selected Associate
+              </h3>
+              {selectedNode && (
+                <button
+                  type="button"
+                  onClick={() => openAddModal(selectedNode)}
+                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded transition cursor-pointer"
+                >
+                  + Add Under This
+                </button>
+              )}
+            </div>
 
             {selectedNode ? (
               <div className="space-y-3">
@@ -430,6 +573,18 @@ export default function AssociateTreeView({
                   </div>
                 </div>
 
+                {/* Quick Add Button */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => openAddModal(selectedNode)}
+                    className="w-full py-2 bg-[#0a1628] hover:bg-[#12243e] text-white rounded text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <UserPlus size={14} className="text-[#e9b04c]" />
+                    <span>Add New Associate Under {selectedNode.name.split(" ")[0]}</span>
+                  </button>
+                </div>
+
                 {selectedNode.children.length > 0 && (
                   <div className="pt-2">
                     <h5 className="text-[11px] font-bold text-gray-700 mb-1.5">
@@ -456,6 +611,160 @@ export default function AssociateTreeView({
           </div>
         </div>
       </div>
+
+      {/* Modal: Add Associate Under Tree */}
+      {isAddModalOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setIsAddModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 relative border border-gray-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+              <div className="flex items-center gap-2">
+                <UserPlus size={18} className="text-[#e9b04c]" />
+                <h3 className="font-bold text-gray-900 text-base">
+                  Add Associate Under Tree
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-gray-400 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Parent Sponsor Notice */}
+            <div className="mb-4 px-3.5 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
+              <div>
+                <span className="text-emerald-700 font-medium">Placement Sponsor:</span>{" "}
+                <strong>{parentTarget.name}</strong> ({parentTarget.memberId})
+              </div>
+              <span className="px-2 py-0.5 rounded bg-emerald-600 text-white font-bold text-[10px]">
+                Parent Node
+              </span>
+            </div>
+
+            {modalError && (
+              <div className="mb-4 px-3 py-2 rounded bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+                {modalError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddAssociate} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Ramesh Sharma"
+                    value={addForm.name}
+                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Username *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. ramesh.sharma"
+                    value={addForm.username}
+                    onChange={(e) => setAddForm({ ...addForm, username: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Mobile Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="e.g. 9829012345"
+                    value={addForm.phone}
+                    onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="e.g. ramesh@example.com"
+                    value={addForm.email}
+                    onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Login Password *
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    placeholder="Min 6 characters"
+                    value={addForm.password}
+                    onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Rank Tier
+                  </label>
+                  <select
+                    value={addForm.rank}
+                    onChange={(e) => setAddForm({ ...addForm, rank: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:border-blue-500 bg-white"
+                  >
+                    <option value="Client Adviser">Client Adviser</option>
+                    <option value="Senior Adviser">Senior Adviser</option>
+                    <option value="Bronze Adviser">Bronze Adviser</option>
+                    <option value="Silver Adviser">Silver Adviser</option>
+                    <option value="Gold Adviser">Gold Adviser</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded text-xs font-medium hover:bg-gray-100 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={modalLoading}
+                  className="px-5 py-2 bg-[#059669] hover:bg-[#047857] text-white rounded text-xs font-bold shadow-xs transition disabled:opacity-50 cursor-pointer"
+                >
+                  {modalLoading ? "Registering & Adding..." : "Register & Add to Tree"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
