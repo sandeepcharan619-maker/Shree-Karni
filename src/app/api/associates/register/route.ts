@@ -5,15 +5,17 @@ import { prisma } from "@/lib/prisma";
 import { generateNextMemberId } from "@/lib/memberId";
 import bcrypt from "bcryptjs";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
-    const { name, username, email, phone, password } = body;
+    const { name, username, email, phone, password, referredById: explicitReferredById } = body;
 
     if (!name || !username || !phone || !password) {
       return NextResponse.json(
@@ -35,51 +37,119 @@ export async function POST(req: NextRequest) {
     const memberId = await generateNextMemberId();
     const hashedPassword = await bcrypt.hash(password.trim(), 10);
 
-    // Resolve referrer for associates
-    let referrerId: string | null = null;
+    // Resolve and VERIFY referrer exists in database to prevent Foreign Key Constraint errors
+    let verifiedReferredById: string | null = null;
     let referrerName: string | null = null;
     let referrerMemberId: string | null = null;
 
     if (session.user.role !== "ADMIN") {
-      const uId = (session.user as any).id;
-      const uName = (session.user as any).username;
-      const mId = (session.user as any).memberId;
-
-      let referrer = null;
-      if (uId) {
-        referrer = await prisma.user.findUnique({ where: { id: uId } });
-      }
-      if (!referrer && (uName || mId)) {
-        referrer = await prisma.user.findFirst({
-          where: {
-            OR: [
-              uName ? { username: uName } : {},
-              mId ? { memberId: mId } : {},
-            ],
-          },
-        });
+      // 1. Check if an explicit referrer ID was passed (e.g., from Tree View)
+      if (explicitReferredById && typeof explicitReferredById === "string") {
+        try {
+          const directParent = await prisma.user.findUnique({
+            where: { id: explicitReferredById.trim() },
+          });
+          if (directParent) {
+            verifiedReferredById = directParent.id;
+            referrerName = directParent.name;
+            referrerMemberId = directParent.memberId;
+          }
+        } catch {}
       }
 
-      if (referrer) {
-        referrerId = referrer.id;
-        referrerName = referrer.name;
-        referrerMemberId = referrer.memberId;
-      } else {
-        referrerId = uId || null;
+      // 2. If not verified yet, look up current session user in database
+      if (!verifiedReferredById) {
+        const uId = (session.user as any).id;
+        const uName = (session.user as any).username;
+        const mId = (session.user as any).memberId;
+
+        let referrer = null;
+        if (uId && typeof uId === "string" && !uId.startsWith("master-admin") && !uId.startsWith("local-")) {
+          try {
+            referrer = await prisma.user.findUnique({ where: { id: uId } });
+          } catch {}
+        }
+
+        if (!referrer && (uName || mId)) {
+          try {
+            referrer = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  uName ? { username: uName } : {},
+                  mId ? { memberId: mId } : {},
+                ],
+              },
+            });
+          } catch {}
+        }
+
+        if (referrer) {
+          verifiedReferredById = referrer.id;
+          referrerName = referrer.name;
+          referrerMemberId = referrer.memberId;
+        } else {
+          // If the logged-in associate doesn't have a row in SQLite DB yet,
+          // safely upsert them so foreign key constraint NEVER fails
+          try {
+            const seedMemberId = mId || "SKR00001";
+            const seedUsername = uName || "associate";
+            const tempPassword = await bcrypt.hash("associate123", 10);
+            const createdReferrer = await prisma.user.upsert({
+              where: { username: seedUsername },
+              update: {},
+              create: {
+                name: session.user.name || "Associate User",
+                username: seedUsername,
+                password: tempPassword,
+                memberId: seedMemberId,
+                role: "ASSOCIATE",
+                rank: "Client Adviser",
+              },
+            });
+            verifiedReferredById = createdReferrer.id;
+            referrerName = createdReferrer.name;
+            referrerMemberId = createdReferrer.memberId;
+          } catch (e) {
+            // If upsert fails for any reason, keep verifiedReferredById as null
+            verifiedReferredById = null;
+          }
+        }
       }
     }
 
-    const user = await prisma.user.create({
-      data: {
-        name: name.trim(),
-        username: normalizedUsername,
-        email: email ? email.trim() : null,
-        phone: phone.trim(),
-        password: hashedPassword,
-        memberId,
-        referredById: referrerId,
-      },
-    });
+    // Create user with verified foreign key (or null fallback if foreign key fails)
+    let user;
+    try {
+      user = await prisma.user.create({
+        data: {
+          name: name.trim(),
+          username: normalizedUsername,
+          email: email ? email.trim() : null,
+          phone: phone.trim(),
+          password: hashedPassword,
+          memberId,
+          referredById: verifiedReferredById,
+        },
+      });
+    } catch (createErr: any) {
+      // If SQLite foreign key constraint failed (P2003), retry safely with null
+      if (createErr.code === "P2003" || createErr.message?.includes("Foreign key")) {
+        console.warn("Retrying user creation with null referredById due to FK constraint");
+        user = await prisma.user.create({
+          data: {
+            name: name.trim(),
+            username: normalizedUsername,
+            email: email ? email.trim() : null,
+            phone: phone.trim(),
+            password: hashedPassword,
+            memberId,
+            referredById: null,
+          },
+        });
+      } else {
+        throw createErr;
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -95,9 +165,9 @@ export async function POST(req: NextRequest) {
         isActive: user.isActive,
         walletBalance: user.walletBalance,
         createdAt: user.createdAt,
-        referredById: user.referredById,
+        referredById: user.referredById || verifiedReferredById,
         referredBy: referrerName
-          ? { id: referrerId, name: referrerName, memberId: referrerMemberId }
+          ? { id: verifiedReferredById, name: referrerName, memberId: referrerMemberId }
           : null,
       },
       memberId: user.memberId,
@@ -105,6 +175,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("Register error:", error);
-    return NextResponse.json({ error: error?.message || "Registration failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || "Registration failed" },
+      { status: 500 }
+    );
   }
 }

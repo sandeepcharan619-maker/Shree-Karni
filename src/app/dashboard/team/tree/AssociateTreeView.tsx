@@ -241,6 +241,7 @@ export default function AssociateTreeView({
           phone: addForm.phone.trim(),
           email: addForm.email?.trim() || null,
           password: addForm.password.trim(),
+          referredById: parentTarget?.id || currentUser?.id,
         }),
       });
 
