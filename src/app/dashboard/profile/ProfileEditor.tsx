@@ -97,7 +97,7 @@ export default function ProfileEditor({
     tahsil: initialUser.tahsil || "",
     villagePost: initialUser.villagePost || "",
     email: initialUser.email || "",
-    phone: initialUser.phone || "9414922674",
+    phone: initialUser.phone || "",
     spouseName: initialUser.spouseName || "",
     // Bank & Nominee details
     bankName: initialUser.bankName || "",
@@ -411,11 +411,12 @@ export default function ProfileEditor({
                   Mobile Number
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 bg-[#ececec] border border-gray-300 rounded text-sm text-gray-700 focus:outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition"
+                  placeholder="e.g. 9414922674"
                 />
               </div>
 

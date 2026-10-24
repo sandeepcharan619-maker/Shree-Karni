@@ -51,7 +51,7 @@ export default async function ProfilePage() {
     role: user?.role || (session.user as any).role || "ASSOCIATE",
     rank: user?.rank || "Client Adviser",
     email: user?.email || session.user.email || "",
-    phone: user?.phone || "9414922674",
+    phone: user?.phone || "",
     gender: (user as any)?.gender || "Male",
     address: (user as any)?.address || "",
     state: (user as any)?.state || "Rajasthan",
