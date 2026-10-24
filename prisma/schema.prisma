@@ -30,11 +30,16 @@ model User {
   incentives    Incentive[]
 
   // Extended Profile Details
+  gender          String?   @default("Male")
   avatarUrl       String?
   address         String?
-  city            String?
   state           String?
+  district        String?
+  city            String?
   pincode         String?
+  tahsil          String?
+  villagePost     String?
+  spouseName      String?
   bankName        String?
   accountNumber   String?
   ifscCode        String?

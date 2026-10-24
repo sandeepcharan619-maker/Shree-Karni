@@ -45,21 +45,25 @@ export default async function ProfilePage() {
   // Fallback defaults from session if user record was not in local SQLite
   const initialUserData: UserProfileData = {
     id: user?.id || userId || "local-associate",
-    name: user?.name || session.user.name || "Associate User",
+    name: user?.name || session.user.name || "Pushpendra singh charan",
     username: user?.username || username || "associate",
     memberId: user?.memberId || memberId || "SKR00001",
     role: user?.role || (session.user as any).role || "ASSOCIATE",
     rank: user?.rank || "Client Adviser",
     email: user?.email || session.user.email || "",
-    phone: user?.phone || "",
+    phone: user?.phone || "9414922674",
+    gender: (user as any)?.gender || "Male",
+    address: (user as any)?.address || "",
+    state: (user as any)?.state || "Rajasthan",
+    district: (user as any)?.district || "",
+    city: (user as any)?.city || "",
+    pincode: (user as any)?.pincode || "",
+    tahsil: (user as any)?.tahsil || "",
+    villagePost: (user as any)?.villagePost || "",
+    spouseName: (user as any)?.spouseName || "",
     walletBalance: user?.walletBalance || 0,
     createdAt: user?.createdAt || new Date().toISOString(),
     referredBy: user?.referredBy || null,
-    avatarUrl: (user as any)?.avatarUrl || null,
-    address: (user as any)?.address || null,
-    city: (user as any)?.city || "Jaipur",
-    state: (user as any)?.state || "Rajasthan",
-    pincode: (user as any)?.pincode || "",
     bankName: (user as any)?.bankName || "",
     accountNumber: (user as any)?.accountNumber || "",
     ifscCode: (user as any)?.ifscCode || "",
@@ -71,16 +75,7 @@ export default async function ProfilePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Associate Profile</h1>
-          <p className="text-xs text-gray-500 mt-1">
-            Manage your personal profile, bank account for commissions, and nominee records
-          </p>
-        </div>
-      </div>
-
+    <div className="w-full max-w-5xl">
       <ProfileEditor initialUser={initialUserData} />
     </div>
   );
