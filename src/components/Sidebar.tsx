@@ -190,7 +190,13 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
 
           {/* Logout */}
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => {
+              const target =
+                typeof window !== "undefined" && window.location.hostname === "localhost"
+                  ? "/"
+                  : "https://www.shreekarnirealestate.in";
+              signOut({ callbackUrl: target });
+            }}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
           >
             <LogOut size={16} className="text-gray-600 shrink-0" />

@@ -128,6 +128,23 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      if (url.includes("shreekarnirealestate.in")) {
+        return url.startsWith("http") ? url : `https://${url}`;
+      }
+      if (url === "/login") {
+        return `${baseUrl}/login`;
+      }
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      try {
+        if (new URL(url).origin === baseUrl) {
+          return url;
+        }
+      } catch {}
+      return "https://www.shreekarnirealestate.in";
+    },
   },
   pages: {
     signIn: "/login",

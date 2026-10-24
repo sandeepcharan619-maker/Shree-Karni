@@ -26,7 +26,13 @@ export default function NavbarAuth() {
         </Link>
 
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => {
+            const target =
+              typeof window !== "undefined" && window.location.hostname === "localhost"
+                ? "/"
+                : "https://www.shreekarnirealestate.in";
+            signOut({ callbackUrl: target });
+          }}
           title="Sign Out"
           className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 transition"
         >
