@@ -2,6 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/StatusBadge";
+import Link from "next/link";
+import { Trees, UserPlus } from "lucide-react";
 
 export default async function DirectTeamPage() {
   const session = await getServerSession(authOptions);
@@ -12,7 +14,25 @@ export default async function DirectTeamPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Direct Team</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Direct Team</h1>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/team/tree"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-md text-xs font-semibold transition"
+          >
+            <Trees size={14} className="text-green-700" />
+            <span>Tree View</span>
+          </Link>
+          <Link
+            href="/dashboard/register"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0a1628] hover:bg-[#12243e] text-white rounded-md text-xs font-semibold shadow-xs transition"
+          >
+            <UserPlus size={14} className="text-[#e9b04c]" />
+            <span>+ Register Associate</span>
+          </Link>
+        </div>
+      </div>
       {directTeam.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
           No direct team members yet. Register new associates to build your team!

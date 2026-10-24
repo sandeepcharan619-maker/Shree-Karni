@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function RegisterAssociatePage() {
   const { data: session } = useSession();
@@ -39,6 +40,34 @@ export default function RegisterAssociatePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Registration failed");
 
+      // Save to local cache so Tree View, Direct Team and Downline reflect it immediately
+      try {
+        const stored = localStorage.getItem("shreekarni_custom_associates_v1");
+        const list = stored ? JSON.parse(stored) : [];
+        const newAssoc = data.user || {
+          id: `local-${Date.now()}`,
+          name: form.name.trim(),
+          username: form.username.trim(),
+          memberId: data.memberId,
+          phone: form.phone.trim(),
+          email: form.email?.trim() || null,
+          rank: "Client Adviser",
+          isActive: true,
+          walletBalance: 0,
+          referredById: session?.user ? (session.user as any).id : null,
+          referredBy: {
+            name: session?.user?.name || "Pushpendra singh charan",
+            memberId: (session?.user as any)?.memberId || "SKR00001",
+          },
+          createdAt: new Date().toISOString(),
+        };
+        list.unshift(newAssoc);
+        localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(list));
+        window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: newAssoc }));
+      } catch (e) {
+        console.warn("Storage sync:", e);
+      }
+
       setSuccess(`Associate registered successfully! Member ID: ${data.memberId}`);
       setForm({ name: "", username: "", email: "", phone: "", password: "" });
     } catch (err: any) {
@@ -53,8 +82,19 @@ export default function RegisterAssociatePage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Register New Associate</h1>
       <div className="bg-white rounded-lg shadow p-6 max-w-2xl">
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {success}
+          <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg mb-4 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold">{success}</p>
+              <p className="text-xs text-green-700 mt-0.5">
+                The associate is now active in your downline and visible in your tree view.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/team/tree"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-green-700 hover:bg-green-800 text-white rounded text-xs font-bold shrink-0 transition"
+            >
+              View in Tree View →
+            </Link>
           </div>
         )}
         {error && (

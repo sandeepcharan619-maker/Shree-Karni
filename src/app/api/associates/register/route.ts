@@ -35,6 +35,40 @@ export async function POST(req: NextRequest) {
     const memberId = await generateNextMemberId();
     const hashedPassword = await bcrypt.hash(password.trim(), 10);
 
+    // Resolve referrer for associates
+    let referrerId: string | null = null;
+    let referrerName: string | null = null;
+    let referrerMemberId: string | null = null;
+
+    if (session.user.role !== "ADMIN") {
+      const uId = (session.user as any).id;
+      const uName = (session.user as any).username;
+      const mId = (session.user as any).memberId;
+
+      let referrer = null;
+      if (uId) {
+        referrer = await prisma.user.findUnique({ where: { id: uId } });
+      }
+      if (!referrer && (uName || mId)) {
+        referrer = await prisma.user.findFirst({
+          where: {
+            OR: [
+              uName ? { username: uName } : {},
+              mId ? { memberId: mId } : {},
+            ],
+          },
+        });
+      }
+
+      if (referrer) {
+        referrerId = referrer.id;
+        referrerName = referrer.name;
+        referrerMemberId = referrer.memberId;
+      } else {
+        referrerId = uId || null;
+      }
+    }
+
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
@@ -43,11 +77,29 @@ export async function POST(req: NextRequest) {
         phone: phone.trim(),
         password: hashedPassword,
         memberId,
-        referredById: session.user.role === "ADMIN" ? null : session.user.id,
+        referredById: referrerId,
       },
     });
 
     return NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        memberId: user.memberId,
+        phone: user.phone,
+        email: user.email,
+        rank: user.rank,
+        role: user.role,
+        isActive: user.isActive,
+        walletBalance: user.walletBalance,
+        createdAt: user.createdAt,
+        referredById: user.referredById,
+        referredBy: referrerName
+          ? { id: referrerId, name: referrerName, memberId: referrerMemberId }
+          : null,
+      },
       memberId: user.memberId,
       message: "Associate registered successfully",
     });

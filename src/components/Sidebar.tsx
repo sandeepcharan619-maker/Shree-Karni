@@ -14,11 +14,13 @@ import {
   LogOut,
   ChevronRight,
   ChevronDown,
+  Trees,
 } from "lucide-react";
 
 interface SubMenuItem {
   label: string;
   href: string;
+  icon?: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
 }
 
 interface MenuItem {
@@ -75,6 +77,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
       icon: Users,
       href: "#",
       submenu: [
+        { label: "Tree View", href: "/dashboard/team/tree", icon: Trees },
         { label: "Direct Team", href: "/dashboard/team/direct" },
         { label: "Total Downline", href: "/dashboard/team/downline" },
       ],
@@ -196,13 +199,14 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
                         key={sub.href}
                         href={sub.href}
                         onClick={onClose}
-                        className={`block py-1.5 px-2 text-xs rounded transition-colors ${
+                        className={`flex items-center gap-2 py-1.5 px-2 text-xs rounded transition-colors ${
                           pathname === sub.href
                             ? "text-blue-600 font-semibold bg-white shadow-xs"
                             : "text-gray-600 hover:text-gray-900"
                         }`}
                       >
-                        {sub.label}
+                        {sub.icon && <sub.icon size={13} className="text-gray-500 shrink-0" />}
+                        <span>{sub.label}</span>
                       </Link>
                     ))}
                   </div>
