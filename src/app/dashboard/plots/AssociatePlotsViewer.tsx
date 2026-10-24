@@ -33,8 +33,8 @@ export default function AssociatePlotsViewer({
   initialPlots: PlotData[];
 }) {
   const [allPlots, setAllPlots] = useState<PlotData[]>(initialPlots);
-  const [selectedProject, setSelectedProject] = useState<string>("ashok vatika");
-  const [activeProject, setActiveProject] = useState<string>("ashok vatika");
+  const [selectedProject, setSelectedProject] = useState<string>("");
+  const [activeProject, setActiveProject] = useState<string>("");
   const [selectedPlot, setSelectedPlot] = useState<PlotData | null>(null);
 
   // Sync with persistent storage & Admin events
@@ -95,8 +95,8 @@ export default function AssociatePlotsViewer({
 
   // Filter plots by active project
   const filteredPlots = useMemo(() => {
-    if (!activeProject || activeProject === "ALL") {
-      return allPlots;
+    if (!activeProject || !activeProject.trim()) {
+      return [];
     }
     return allPlots
       .filter(
@@ -146,7 +146,9 @@ export default function AssociatePlotsViewer({
                 value={selectedProject}
                 onChange={(e) => {
                   setSelectedProject(e.target.value);
-                  setActiveProject(e.target.value);
+                  if (!e.target.value) {
+                    setActiveProject("");
+                  }
                 }}
                 className="w-full px-3.5 py-2 border border-gray-300 rounded text-sm text-gray-800 bg-white focus:outline-none focus:border-blue-500 transition cursor-pointer"
               >
@@ -167,17 +169,18 @@ export default function AssociatePlotsViewer({
             </div>
           </form>
 
-          {/* Plots Grid - 5 columns on desktop matching user screenshot */}
-          {filteredPlots.length === 0 ? (
+          {/* If a project is selected but has no plots */}
+          {activeProject && filteredPlots.length === 0 && (
             <div className="mt-6 p-10 text-center rounded-lg border border-dashed border-gray-300 bg-gray-50">
               <p className="text-sm text-gray-500">
-                {activeProject
-                  ? `No plots found for project "${activeProject}". Admin can add plots in Admin Dashboard.`
-                  : "Please select a project and click Search to view available plots."}
+                No plots found for project "{activeProject}".
               </p>
             </div>
-          ) : (
-            <div className="pt-4">
+          )}
+
+          {/* Plots Grid - Shown only when a project is searched/selected */}
+          {activeProject && filteredPlots.length > 0 && (
+            <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5 md:gap-4">
                 {filteredPlots.map((plot) => {
                   const displayNum = getDisplayPlotNumber(plot.plotNumber);
@@ -235,7 +238,7 @@ export default function AssociatePlotsViewer({
                   * Plots & projects are managed exclusively by Administration.
                 </p>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>
