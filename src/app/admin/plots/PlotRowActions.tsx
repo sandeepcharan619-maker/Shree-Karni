@@ -39,6 +39,12 @@ export default function PlotRowActions({
         }
       } catch (e) {}
 
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("skr-plot-updated", { detail: { id, plotNumber, status: newStatus } })
+        );
+      }
+
       const res = await fetch("/api/admin/plots", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

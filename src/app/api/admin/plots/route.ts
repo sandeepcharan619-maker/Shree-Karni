@@ -12,11 +12,11 @@ function isAdmin(session: any): boolean {
   return role === "ADMIN" || username === "admin" || memberId === "SKRADMIN";
 }
 
-// GET: Fetch all plots
+// GET: Fetch all plots (available to admin and logged-in associates)
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!isAdmin(session)) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
