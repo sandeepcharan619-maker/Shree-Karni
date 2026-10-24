@@ -78,8 +78,6 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
       href: "#",
       submenu: [
         { label: "Tree View", href: "/dashboard/team/tree", icon: Trees },
-        { label: "Direct Team", href: "/dashboard/team/direct" },
-        { label: "Total Downline", href: "/dashboard/team/downline" },
       ],
     },
     { label: "Plot Manager", icon: Repeat, href: "/dashboard/plots" },
