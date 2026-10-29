@@ -50,7 +50,7 @@ export default async function AdminDashboard() {
     include: {
       sale: {
         include: {
-          soldBy: { select: { name: true, memberId: true } },
+          soldBy: { select: { id: true, name: true, memberId: true } },
         },
       },
     },
@@ -135,7 +135,8 @@ export default async function AdminDashboard() {
       {/* Plots Inventory Section with Real-Time Local & Server Sync */}
       <div className="bg-white p-6 rounded-xl shadow-xs border border-gray-200">
         <PlotsManager
-          initialPlots={plots}
+          initialPlots={plots as any}
+          initialAssociates={sponsorOptions}
           title="Plots Inventory Management"
           subtitle="Manage plot inventory, prices, status, and sales assignments"
         />

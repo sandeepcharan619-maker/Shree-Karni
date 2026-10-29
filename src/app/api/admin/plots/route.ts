@@ -120,31 +120,147 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, status, pricePerGaj, sizeGaj, location, projectName } = body;
+    const {
+      id,
+      plotNumber,
+      projectName,
+      location,
+      sizeGaj,
+      pricePerGaj,
+      totalPrice,
+      status,
+      buyerName,
+      buyerPhone,
+      soldById,
+      saleAmount,
+    } = body;
 
-    if (!id) {
-      return NextResponse.json({ error: "Plot ID is required" }, { status: 400 });
+    if (!id && !plotNumber) {
+      return NextResponse.json({ error: "Plot ID or Plot Number is required" }, { status: 400 });
+    }
+
+    // Find the plot by ID or by Plot Number
+    const current = await prisma.plot.findFirst({
+      where: {
+        OR: [
+          ...(id && !id.startsWith("local-") ? [{ id }] : []),
+          ...(plotNumber ? [{ plotNumber: plotNumber.trim().toUpperCase() }] : []),
+        ],
+      },
+      include: {
+        sale: {
+          include: {
+            soldBy: { select: { id: true, name: true, memberId: true } },
+          },
+        },
+      },
+    });
+
+    if (!current) {
+      return NextResponse.json({ error: "Plot not found in database" }, { status: 404 });
     }
 
     const updateData: any = {};
-    if (status) updateData.status = status;
-    if (location) updateData.location = location.trim();
-    if (projectName) updateData.projectName = projectName.trim();
 
-    if (pricePerGaj !== undefined || sizeGaj !== undefined) {
-      const current = await prisma.plot.findUnique({ where: { id } });
-      if (current) {
-        const newSize = sizeGaj !== undefined ? parseFloat(sizeGaj) : current.sizeGaj;
-        const newPrice = pricePerGaj !== undefined ? parseFloat(pricePerGaj) : current.pricePerGaj;
-        updateData.sizeGaj = newSize;
-        updateData.pricePerGaj = newPrice;
-        updateData.totalPrice = newSize * newPrice;
+    // 1. Plot Number update with duplicate check
+    if (plotNumber && plotNumber.trim()) {
+      const cleanPlotNum = plotNumber.trim().toUpperCase();
+      if (cleanPlotNum !== current.plotNumber) {
+        const existingWithNum = await prisma.plot.findFirst({
+          where: { plotNumber: cleanPlotNum, NOT: { id: current.id } },
+        });
+        if (existingWithNum) {
+          return NextResponse.json(
+            { error: `Plot number "${cleanPlotNum}" is already assigned to another plot.` },
+            { status: 400 }
+          );
+        }
+        updateData.plotNumber = cleanPlotNum;
       }
     }
 
-    const updated = await prisma.plot.update({
-      where: { id },
+    // 2. Project name & Location
+    if (projectName !== undefined) updateData.projectName = projectName.trim();
+    if (location !== undefined) updateData.location = location.trim();
+
+    // 3. Size, Price and Total Price
+    const newSize = sizeGaj !== undefined && sizeGaj !== "" ? parseFloat(sizeGaj) : current.sizeGaj;
+    const newPrice = pricePerGaj !== undefined && pricePerGaj !== "" ? parseFloat(pricePerGaj) : current.pricePerGaj;
+    
+    if (sizeGaj !== undefined) updateData.sizeGaj = newSize;
+    if (pricePerGaj !== undefined) updateData.pricePerGaj = newPrice;
+
+    if (totalPrice !== undefined && totalPrice !== "" && !isNaN(parseFloat(totalPrice))) {
+      updateData.totalPrice = parseFloat(totalPrice);
+    } else if (sizeGaj !== undefined || pricePerGaj !== undefined) {
+      updateData.totalPrice = newSize * newPrice;
+    }
+
+    // 4. Status
+    if (status) updateData.status = status;
+
+    // Update the plot record
+    await prisma.plot.update({
+      where: { id: current.id },
       data: updateData,
+    });
+
+    // 5. Manage Sale (Sold To / Associate)
+    const effectiveStatus = status || current.status;
+    const effectiveTotalPrice = updateData.totalPrice ?? current.totalPrice;
+
+    if (effectiveStatus === "SOLD" || (buyerName && buyerName.trim())) {
+      // Find associate user if provided
+      let finalSoldById = session?.user?.id || "";
+      if (soldById) {
+        const userFound = await prisma.user.findFirst({
+          where: { OR: [{ id: soldById }, { memberId: soldById }] },
+        });
+        if (userFound) {
+          finalSoldById = userFound.id;
+        }
+      } else if (current.sale?.soldById) {
+        finalSoldById = current.sale.soldById;
+      }
+
+      const finalBuyerName = (buyerName || current.sale?.buyerName || "Buyer").trim();
+      const finalBuyerPhone = (buyerPhone !== undefined ? buyerPhone : current.sale?.buyerPhone || "").trim();
+      const finalSaleAmount =
+        saleAmount !== undefined && saleAmount !== ""
+          ? parseFloat(saleAmount)
+          : current.sale?.saleAmount || effectiveTotalPrice;
+
+      await prisma.sale.upsert({
+        where: { plotId: current.id },
+        create: {
+          plotId: current.id,
+          buyerName: finalBuyerName,
+          buyerPhone: finalBuyerPhone,
+          soldById: finalSoldById,
+          saleAmount: finalSaleAmount,
+        },
+        update: {
+          buyerName: finalBuyerName,
+          buyerPhone: finalBuyerPhone,
+          soldById: finalSoldById,
+          saleAmount: finalSaleAmount,
+        },
+      });
+    } else if (effectiveStatus === "AVAILABLE" && (!buyerName || !buyerName.trim())) {
+      // If reset to AVAILABLE and no buyer specified, remove any previous sale
+      await prisma.sale.deleteMany({ where: { plotId: current.id } });
+    }
+
+    // Retrieve full updated record
+    const updated = await prisma.plot.findUnique({
+      where: { id: current.id },
+      include: {
+        sale: {
+          include: {
+            soldBy: { select: { id: true, name: true, memberId: true } },
+          },
+        },
+      },
     });
 
     try {
@@ -156,7 +272,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Plot updated successfully",
+      message: `Plot ${updated?.plotNumber || current.plotNumber} updated successfully`,
       plot: updated,
     });
   } catch (error: any) {

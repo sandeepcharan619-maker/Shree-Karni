@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Edit, ExternalLink } from "lucide-react";
 
 export default function PlotRowActions({
   id,
@@ -10,12 +10,16 @@ export default function PlotRowActions({
   currentStatus,
   onDeleted,
   onUpdated,
+  onEditInline,
+  onOpenModal,
 }: {
   id: string;
   plotNumber: string;
   currentStatus: string;
   onDeleted?: () => void;
   onUpdated?: (newStatus: string) => void;
+  onEditInline?: () => void;
+  onOpenModal?: () => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -115,7 +119,33 @@ export default function PlotRowActions({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {/* Edit button */}
+      <button
+        type="button"
+        onClick={onEditInline || onOpenModal}
+        disabled={loading}
+        title="Edit all plot details inline"
+        className="flex items-center gap-1 px-2.5 py-1 text-xs rounded font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border border-blue-200 transition cursor-pointer active:scale-95 disabled:opacity-50"
+      >
+        <Edit size={13} />
+        <span>Edit</span>
+      </button>
+
+      {/* Modal popup edit button */}
+      {onOpenModal && (
+        <button
+          type="button"
+          onClick={onOpenModal}
+          disabled={loading}
+          title="Open complete edit dialog"
+          className="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded border border-gray-200 transition cursor-pointer"
+        >
+          <ExternalLink size={13} />
+        </button>
+      )}
+
+      {/* Quick Status Select */}
       <select
         value={currentStatus}
         onChange={(e) => updateStatus(e.target.value)}
@@ -128,12 +158,13 @@ export default function PlotRowActions({
         <option value="SOLD">Sold</option>
       </select>
 
+      {/* Delete button */}
       <button
         type="button"
         onClick={deletePlot}
         disabled={loading}
         title="Delete Plot"
-        className="flex items-center gap-1 px-2.5 py-1 text-xs rounded font-medium bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-red-200 transition cursor-pointer active:scale-95 disabled:opacity-50"
+        className="flex items-center gap-1 px-2 py-1 text-xs rounded font-medium bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 border border-red-200 transition cursor-pointer active:scale-95 disabled:opacity-50"
       >
         <Trash2 size={13} />
         <span>Delete</span>
