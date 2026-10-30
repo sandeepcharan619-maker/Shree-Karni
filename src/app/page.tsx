@@ -28,99 +28,13 @@ import InquiryForm from "@/components/InquiryForm";
 import NavbarAuth from "@/components/NavbarAuth";
 import HeroAuthButtons from "@/components/HeroAuthButtons";
 import AssociateSectionButtons from "@/components/AssociateSectionButtons";
-import FeaturedPlots from "@/components/FeaturedPlots";
 import PlotCalculator from "@/components/PlotCalculator";
 import FloatingContactPill from "@/components/FloatingContactPill";
-
-const DEFAULT_PLOTS = [
-  {
-    id: "sample-1",
-    plotNumber: "SKC-001",
-    projectName: "Ashok Vatika",
-    location: "Vatika Road Corridor, Jaipur",
-    sizeGaj: 125,
-    pricePerGaj: 5500,
-    totalPrice: 687500,
-    status: "AVAILABLE",
-  },
-  {
-    id: "sample-2",
-    plotNumber: "SKC-002",
-    projectName: "Ashok Vatika",
-    location: "Vatika Road Corridor, Jaipur",
-    sizeGaj: 150,
-    pricePerGaj: 6000,
-    totalPrice: 900000,
-    status: "AVAILABLE",
-  },
-  {
-    id: "sample-3",
-    plotNumber: "SKC-003",
-    projectName: "Shree Karni City",
-    location: "Tonk Road / Ring Road, Jaipur",
-    sizeGaj: 175,
-    pricePerGaj: 6500,
-    totalPrice: 1137500,
-    status: "AVAILABLE",
-  },
-  {
-    id: "sample-4",
-    plotNumber: "SKC-004",
-    projectName: "Ashok Vatika",
-    location: "Vatika Road Corridor, Jaipur",
-    sizeGaj: 200,
-    pricePerGaj: 7000,
-    totalPrice: 1400000,
-    status: "RESERVED",
-  },
-  {
-    id: "sample-5",
-    plotNumber: "SKC-005",
-    projectName: "Shree Karni City",
-    location: "Sector 1, Vatika Corridor, Jaipur",
-    sizeGaj: 225,
-    pricePerGaj: 7500,
-    totalPrice: 1687500,
-    status: "AVAILABLE",
-  },
-  {
-    id: "sample-6",
-    plotNumber: "SKC-006",
-    projectName: "Ashok Vatika",
-    location: "Vatika Road Corridor, Jaipur",
-    sizeGaj: 250,
-    pricePerGaj: 8000,
-    totalPrice: 2000000,
-    status: "AVAILABLE",
-  },
-];
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function HomePage() {
-  let plots = DEFAULT_PLOTS;
-  try {
-    const dbPlots = await prisma.plot.findMany({
-      take: 12,
-      orderBy: { createdAt: "desc" },
-    });
-    if (dbPlots && dbPlots.length > 0) {
-      plots = dbPlots.map((p) => ({
-        id: p.id,
-        plotNumber: p.plotNumber,
-        projectName: p.projectName,
-        location: p.location,
-        sizeGaj: p.sizeGaj,
-        pricePerGaj: p.pricePerGaj,
-        totalPrice: p.totalPrice,
-        status: p.status,
-      }));
-    }
-  } catch (err) {
-    console.warn("Could not load dynamic plots from database:", err);
-  }
-
   return (
     <div className="min-h-screen bg-slate-50/50 text-slate-800 font-sans selection:bg-emerald-100 selection:text-emerald-900">
       {/* 1. TOP ANNOUNCEMENT BAR */}
@@ -176,9 +90,6 @@ export default async function HomePage() {
           <nav className="hidden lg:flex items-center gap-7 text-sm font-semibold text-slate-700">
             <Link href="/" className="text-emerald-600 font-bold transition">
               Home
-            </Link>
-            <Link href="#plots" className="hover:text-emerald-600 transition">
-              Townships & Plots
             </Link>
             <Link href="#calculator" className="hover:text-emerald-600 transition">
               Plot Calculator
@@ -275,36 +186,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 4. FEATURED PLOTS & TOWNSHIPS SECTION */}
-      <section id="plots" className="py-20 bg-slate-50/70 border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-            <div>
-              <span className="text-xs font-extrabold text-emerald-600 uppercase tracking-widest block">
-                Live Inventory
-              </span>
-              <h2 className="text-3xl font-extrabold text-slate-900 mt-1">
-                Available Townships & Plots
-              </h2>
-              <p className="text-slate-600 text-sm mt-1">
-                Select your plot size in GAJ across our legally verified townships in Jaipur.
-              </p>
-            </div>
-
-            <Link
-              href="#contact"
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1.5 self-start md:self-auto bg-emerald-50 px-3.5 py-2 rounded-lg border border-emerald-200 transition"
-            >
-              <span>Schedule a Free Site Visit</span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <FeaturedPlots initialPlots={plots} />
-        </div>
-      </section>
-
-      {/* 5. INTERACTIVE PLOT & EMI CALCULATOR SECTION */}
+      {/* 4. INTERACTIVE PLOT & EMI CALCULATOR SECTION */}
       <section id="calculator" className="py-20 bg-white border-b border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
@@ -709,7 +591,6 @@ export default async function HomePage() {
             <h4 className="text-white font-bold text-sm mb-3">Quick Navigation</h4>
             <ul className="space-y-2">
               <li><Link href="/" className="hover:text-emerald-400 transition">Home</Link></li>
-              <li><Link href="#plots" className="hover:text-emerald-400 transition">Available Plots</Link></li>
               <li><Link href="#calculator" className="hover:text-emerald-400 transition">Plot Calculator</Link></li>
               <li><Link href="#amenities" className="hover:text-emerald-400 transition">Township Amenities</Link></li>
               <li><Link href="#contact" className="hover:text-emerald-400 transition">Contact Us</Link></li>
