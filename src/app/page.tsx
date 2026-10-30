@@ -218,8 +218,8 @@ export default async function HomePage() {
               <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Active Associates</p>
             </div>
             <div>
-              <p className="text-3xl font-extrabold text-white">2 Prime Cities</p>
-              <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Jaipur & Jodhpur</p>
+              <p className="text-3xl font-extrabold text-white">Prime City</p>
+              <p className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Jaipur</p>
             </div>
           </div>
         </div>
