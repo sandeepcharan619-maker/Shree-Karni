@@ -102,6 +102,9 @@ export default function AddAssociateModal({
       if (onSuccess) {
         onSuccess(createdAssoc);
       }
+      try {
+        window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: createdAssoc }));
+      } catch (e) {}
 
       setTimeout(() => {
         setIsOpen(false);

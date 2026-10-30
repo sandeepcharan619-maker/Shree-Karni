@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateNextMemberId } from "@/lib/memberId";
+import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -150,6 +151,13 @@ export async function POST(req: NextRequest) {
         throw createErr;
       }
     }
+
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/associates");
+      revalidatePath("/dashboard/team/direct");
+      revalidatePath("/dashboard/team/downline");
+    } catch {}
 
     return NextResponse.json({
       success: true,

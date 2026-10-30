@@ -90,6 +90,7 @@ export default function CreateAssociateAdminPage() {
         const list = stored ? JSON.parse(stored) : [];
         const updated = [createdAssoc, ...list.filter((a: any) => a.memberId !== data.memberId)];
         localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: createdAssoc }));
       } catch (e) {}
 
       setSuccess(`Associate created successfully! Assigned Member ID: ${data.memberId}`);

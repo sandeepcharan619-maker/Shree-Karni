@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateNextMemberId } from "@/lib/memberId";
+import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,6 +34,7 @@ export async function POST(req: NextRequest) {
 
     // Resolve referredById if referralCode was supplied
     let referredById: string | null = null;
+    let referrerInfo: { id: string; name: string; memberId: string } | null = null;
     if (referralCode && referralCode.trim()) {
       const referrer = await prisma.user.findFirst({
         where: {
@@ -39,6 +43,7 @@ export async function POST(req: NextRequest) {
       });
       if (referrer) {
         referredById = referrer.id;
+        referrerInfo = { id: referrer.id, name: referrer.name, memberId: referrer.memberId };
       }
     }
 
@@ -58,12 +63,34 @@ export async function POST(req: NextRequest) {
         rank: "Client Adviser",
         referredById,
         walletBalance: 0,
+        isActive: true,
       },
     });
+
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/associates");
+      revalidatePath("/dashboard/team/direct");
+      revalidatePath("/dashboard/team/downline");
+    } catch {}
 
     return NextResponse.json({
       success: true,
       memberId: newUser.memberId,
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        username: newUser.username,
+        memberId: newUser.memberId,
+        phone: newUser.phone,
+        email: newUser.email,
+        rank: newUser.rank,
+        isActive: newUser.isActive,
+        walletBalance: newUser.walletBalance,
+        referredBy: referrerInfo,
+        _count: { referrals: 0, sales: 0 },
+        createdAt: newUser.createdAt,
+      },
       message: "Account created successfully! You can now log in.",
     });
   } catch (error: any) {

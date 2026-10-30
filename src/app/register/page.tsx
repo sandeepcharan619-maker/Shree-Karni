@@ -46,6 +46,16 @@ function RegisterForm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Sign up failed");
 
+      if (data.user) {
+        try {
+          window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: data.user }));
+          const stored = localStorage.getItem("shreekarni_custom_associates_v1");
+          const list = stored ? JSON.parse(stored) : [];
+          const updated = [data.user, ...list.filter((x: any) => x.memberId !== data.user.memberId)];
+          localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
+        } catch {}
+      }
+
       setSuccess(`Account registered successfully! Your Member ID is: ${data.memberId}. Redirecting to login...`);
       setTimeout(() => {
         router.push("/login");
