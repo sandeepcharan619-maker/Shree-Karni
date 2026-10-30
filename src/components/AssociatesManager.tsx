@@ -26,13 +26,35 @@ export interface AssociateItem {
 }
 
 const STORAGE_KEY = "shreekarni_custom_associates_v1";
+const DELETED_KEY = "shreekarni_deleted_associates_v1";
 
-const SAMPLE_USERNAMES = new Set(["rajesh.sharma", "priya.verma", "amit.kumar"]);
+function getDeletedSet(): Set<string> {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(DELETED_KEY) : null;
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr.map((s) => String(s).toUpperCase()));
+    }
+  } catch {}
+  return new Set();
+}
 
-function isSampleAssociate(item: AssociateItem): boolean {
-  if (!item) return false;
-  if (item.username && SAMPLE_USERNAMES.has(item.username.toLowerCase())) return true;
-  return false;
+function markDeleted(memberIdOrId?: string | null) {
+  if (!memberIdOrId || typeof window === "undefined") return;
+  try {
+    const set = getDeletedSet();
+    set.add(memberIdOrId.toUpperCase());
+    localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
+function unmarkDeleted(memberIdOrId?: string | null) {
+  if (!memberIdOrId || typeof window === "undefined") return;
+  try {
+    const set = getDeletedSet();
+    set.delete(memberIdOrId.toUpperCase());
+    localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
 }
 
 export default function AssociatesManager({
@@ -46,36 +68,59 @@ export default function AssociatesManager({
   subtitle?: string;
   maxRows?: number;
 }) {
-  const [associates, setAssociates] = useState<AssociateItem[]>(() =>
-    initialAssociates.filter((item) => !isSampleAssociate(item))
-  );
+  const [associates, setAssociates] = useState<AssociateItem[]>(initialAssociates);
   const [editingAssociate, setEditingAssociate] = useState<AssociateItem | null>(null);
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState("ALL");
   const [toast, setToast] = useState<string | null>(null);
 
+  // Sync with initialAssociates prop if it updates from Server Component re-render
+  useEffect(() => {
+    if (initialAssociates && initialAssociates.length > 0) {
+      setAssociates((prev) => {
+        const deleted = getDeletedSet();
+        const map = new Map<string, AssociateItem>();
+        // Add initialAssociates from server
+        initialAssociates.forEach((item) => {
+          const key = (item.memberId || item.id).toUpperCase();
+          if (!deleted.has(key)) map.set(key, item);
+        });
+        // Retain any locally stored/added associates
+        prev.forEach((item) => {
+          const key = (item.memberId || item.id).toUpperCase();
+          if (!deleted.has(key) && !map.has(key)) map.set(key, item);
+        });
+        const merged = Array.from(map.values());
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        } catch {}
+        return merged;
+      });
+    }
+  }, [initialAssociates]);
+
   // Sync with persistent browser storage and fetch live DB on mount
   useEffect(() => {
-    // 1. Purge legacy sample associates from localStorage
+    const deleted = getDeletedSet();
+
+    // 1. Rehydrate from localStorage immediately
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const localList: AssociateItem[] = JSON.parse(stored);
-        if (Array.isArray(localList)) {
-          const cleaned = localList.filter((item) => !isSampleAssociate(item));
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-          if (cleaned.length > 0) {
-            setAssociates((prev) => {
-              const map = new Map<string, AssociateItem>();
-              prev.forEach((item) => {
-                if (!isSampleAssociate(item)) map.set((item.memberId || item.id).toUpperCase(), item);
-              });
-              cleaned.forEach((item) => {
-                if (!isSampleAssociate(item)) map.set((item.memberId || item.id).toUpperCase(), item);
-              });
-              return Array.from(map.values());
+        if (Array.isArray(localList) && localList.length > 0) {
+          setAssociates((prev) => {
+            const map = new Map<string, AssociateItem>();
+            prev.forEach((item) => {
+              const key = (item.memberId || item.id).toUpperCase();
+              if (!deleted.has(key)) map.set(key, item);
             });
-          }
+            localList.forEach((item) => {
+              const key = (item.memberId || item.id).toUpperCase();
+              if (!deleted.has(key)) map.set(key, item);
+            });
+            return Array.from(map.values());
+          });
         }
       }
     } catch (e) {
@@ -88,11 +133,45 @@ export default function AssociatesManager({
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (Array.isArray(data)) {
-            const realAssocs = data.filter((item) => !isSampleAssociate(item));
-            setAssociates(realAssocs);
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(realAssocs));
-            } catch (e) {}
+            setAssociates((prev) => {
+              const currentDeleted = getDeletedSet();
+              const map = new Map<string, AssociateItem>();
+              // 1. Add all server associates that were not deleted
+              data.forEach((item) => {
+                const key = (item.memberId || item.id).toUpperCase();
+                if (!currentDeleted.has(key)) {
+                  map.set(key, item);
+                }
+              });
+              // 2. Retain any local associates that haven't synced to server yet
+              prev.forEach((item) => {
+                const key = (item.memberId || item.id).toUpperCase();
+                if (!currentDeleted.has(key) && !map.has(key)) {
+                  map.set(key, item);
+                }
+              });
+              // 3. Also check localStorage for any pending associates
+              try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                  const localList: AssociateItem[] = JSON.parse(stored);
+                  if (Array.isArray(localList)) {
+                    localList.forEach((item) => {
+                      const key = (item.memberId || item.id).toUpperCase();
+                      if (!currentDeleted.has(key) && !map.has(key)) {
+                        map.set(key, item);
+                      }
+                    });
+                  }
+                }
+              } catch {}
+
+              const merged = Array.from(map.values());
+              try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
           }
         })
         .catch((err) => console.warn("Could not sync associates with server:", err));
@@ -104,13 +183,23 @@ export default function AssociatesManager({
     // Listen to global associate add/delete events
     const handleGlobalAssociateAdded = (e: any) => {
       const newAssoc = e.detail;
-      if (newAssoc && !isSampleAssociate(newAssoc)) {
+      if (newAssoc) {
+        unmarkDeleted(newAssoc.memberId);
+        unmarkDeleted(newAssoc.id);
         setAssociates((prev) => {
           const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
-          const updated = [newAssoc, ...prev.filter((a) => (a.memberId || "").toUpperCase() !== cleanMemberId)];
+          const cleanId = (newAssoc.id || "").toUpperCase();
+          const updated = [
+            newAssoc,
+            ...prev.filter(
+              (a) =>
+                (a.memberId || "").toUpperCase() !== cleanMemberId &&
+                (a.id || "").toUpperCase() !== cleanId
+            ),
+          ];
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-          } catch (e) {}
+          } catch {}
           return updated;
         });
         showToast(`Associate ${newAssoc.name} (${newAssoc.memberId}) added to the list!`);
@@ -119,6 +208,8 @@ export default function AssociatesManager({
 
     const handleGlobalAssociateDeleted = (e: any) => {
       const { id, memberId } = e.detail || {};
+      if (id) markDeleted(id);
+      if (memberId) markDeleted(memberId);
       setAssociates((prev) => {
         const updated = prev.filter((a) => {
           if (id && a.id === id) return false;
@@ -127,7 +218,7 @@ export default function AssociatesManager({
         });
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        } catch (e) {}
+        } catch {}
         return updated;
       });
       showToast("Associate removed successfully.");
@@ -136,13 +227,17 @@ export default function AssociatesManager({
     const handleGlobalAssociateUpdated = (e: any) => {
       const updated = e.detail;
       if (updated && (updated.id || updated.memberId)) {
-        setAssociates((prev) =>
-          prev.map((a) =>
+        setAssociates((prev) => {
+          const next = prev.map((a) =>
             a.id === updated.id || (a.memberId && a.memberId === updated.memberId)
               ? { ...a, ...updated }
               : a
-          )
-        );
+          );
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          } catch {}
+          return next;
+        });
       }
     };
 
@@ -164,18 +259,30 @@ export default function AssociatesManager({
   };
 
   const handleAssociateCreated = (newAssoc: AssociateItem) => {
+    unmarkDeleted(newAssoc.memberId);
+    unmarkDeleted(newAssoc.id);
     setAssociates((prev) => {
       const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
-      const updated = [newAssoc, ...prev.filter((a) => (a.memberId || "").toUpperCase() !== cleanMemberId)];
+      const cleanId = (newAssoc.id || "").toUpperCase();
+      const updated = [
+        newAssoc,
+        ...prev.filter(
+          (a) =>
+            (a.memberId || "").toUpperCase() !== cleanMemberId &&
+            (a.id || "").toUpperCase() !== cleanId
+        ),
+      ];
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {}
+      } catch {}
       return updated;
     });
     showToast(`Associate ${newAssoc.name} (${newAssoc.memberId}) added to the list!`);
   };
 
   const handleAssociateDeleted = (id: string, memberId: string) => {
+    if (id) markDeleted(id);
+    if (memberId) markDeleted(memberId);
     setAssociates((prev) => {
       const updated = prev.filter((a) => {
         if (id && a.id === id) return false;
@@ -184,7 +291,7 @@ export default function AssociatesManager({
       });
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {}
+      } catch {}
       return updated;
     });
     showToast("Associate removed successfully.");
@@ -195,7 +302,7 @@ export default function AssociatesManager({
       const updated = prev.map((a) => (a.id === id ? { ...a, ...updates } : a));
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch (e) {}
+      } catch {}
       return updated;
     });
   };

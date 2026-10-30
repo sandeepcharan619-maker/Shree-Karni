@@ -92,12 +92,39 @@ export default function AddAssociateModal({
         username: form.username.trim(),
         memberId: data.memberId,
         phone: form.phone.trim(),
+        email: form.email ? form.email.trim() : null,
         rank: form.rank,
         isActive: true,
         walletBalance: form.walletBalance || 0,
         referredBy: sponsors.find((s) => s.id === form.referredById) || null,
         _count: { referrals: 0, sales: 0 },
+        createdAt: new Date().toISOString(),
       };
+
+      try {
+        // 1. Unmark from deleted set
+        const deletedRaw = localStorage.getItem("shreekarni_deleted_associates_v1");
+        if (deletedRaw) {
+          const arr = JSON.parse(deletedRaw);
+          if (Array.isArray(arr)) {
+            const filtered = arr.filter(
+              (x) =>
+                String(x).toUpperCase() !== (createdAssoc.memberId || "").toUpperCase() &&
+                String(x).toUpperCase() !== (createdAssoc.id || "").toUpperCase()
+            );
+            localStorage.setItem("shreekarni_deleted_associates_v1", JSON.stringify(filtered));
+          }
+        }
+        // 2. Save directly to custom associates store
+        const stored = localStorage.getItem("shreekarni_custom_associates_v1");
+        const list = stored ? JSON.parse(stored) : [];
+        const cleanMemberId = (createdAssoc.memberId || "").toUpperCase();
+        const updated = [
+          createdAssoc,
+          ...list.filter((a: any) => (a.memberId || "").toUpperCase() !== cleanMemberId),
+        ];
+        localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
+      } catch (e) {}
 
       if (onSuccess) {
         onSuccess(createdAssoc);

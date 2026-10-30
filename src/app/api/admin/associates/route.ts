@@ -128,6 +128,13 @@ export async function POST(req: NextRequest) {
         username: newUser.username,
         memberId: newUser.memberId,
         rank: newUser.rank,
+        phone: newUser.phone,
+        email: newUser.email,
+        walletBalance: newUser.walletBalance,
+        isActive: newUser.isActive,
+        referredBy: verifiedReferredById ? { id: verifiedReferredById } : null,
+        _count: { referrals: 0, sales: 0 },
+        createdAt: newUser.createdAt,
       },
       message: `Associate ${newUser.name} created successfully with Member ID: ${newUser.memberId}`,
     });

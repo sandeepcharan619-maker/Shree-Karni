@@ -86,9 +86,25 @@ export default function CreateAssociateAdminPage() {
       };
 
       try {
+        const deletedRaw = localStorage.getItem("shreekarni_deleted_associates_v1");
+        if (deletedRaw) {
+          const arr = JSON.parse(deletedRaw);
+          if (Array.isArray(arr)) {
+            const filtered = arr.filter(
+              (x) =>
+                String(x).toUpperCase() !== (createdAssoc.memberId || "").toUpperCase() &&
+                String(x).toUpperCase() !== (createdAssoc.id || "").toUpperCase()
+            );
+            localStorage.setItem("shreekarni_deleted_associates_v1", JSON.stringify(filtered));
+          }
+        }
         const stored = localStorage.getItem("shreekarni_custom_associates_v1");
         const list = stored ? JSON.parse(stored) : [];
-        const updated = [createdAssoc, ...list.filter((a: any) => a.memberId !== data.memberId)];
+        const cleanMemberId = (createdAssoc.memberId || "").toUpperCase();
+        const updated = [
+          createdAssoc,
+          ...list.filter((a: any) => (a.memberId || "").toUpperCase() !== cleanMemberId),
+        ];
         localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
         window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: createdAssoc }));
       } catch (e) {}
