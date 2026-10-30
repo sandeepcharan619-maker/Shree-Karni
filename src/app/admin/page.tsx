@@ -5,6 +5,7 @@ import AssociatesManager from "@/components/AssociatesManager";
 import PlotsManager from "@/components/PlotsManager";
 import AddPlotModal from "./plots/AddPlotModal";
 import AddAssociateModal from "./associates/AddAssociateModal";
+import RecentSalesActivity from "./RecentSalesActivity";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -143,55 +144,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Recent Sales Activity */}
-      <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Recent Sales Activity</h2>
-            <p className="text-xs text-gray-500">Latest completed buyer bookings and associate commissions</p>
-          </div>
-          <Link href="/admin/sales" className="text-sm font-semibold text-blue-600 hover:underline">
-            View All Sales →
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b text-xs font-semibold text-gray-600 uppercase">
-                <th className="px-4 py-3 text-left">Plot No</th>
-                <th className="px-4 py-3 text-left">Buyer</th>
-                <th className="px-4 py-3 text-left">Sold By</th>
-                <th className="px-4 py-3 text-left">Size (GAJ)</th>
-                <th className="px-4 py-3 text-left">Amount</th>
-                <th className="px-4 py-3 text-left">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {recentSales.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-gray-500 text-sm">
-                    No sales recorded yet.
-                  </td>
-                </tr>
-              ) : (
-                recentSales.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 text-sm font-semibold text-blue-600">{sale.plot.plotNumber}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{sale.buyerName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {sale.soldBy.name} ({sale.soldBy.memberId})
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{sale.plot.sizeGaj} GAJ</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-800">₹{sale.saleAmount.toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {new Date(sale.saleDate).toLocaleDateString("en-IN")}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <RecentSalesActivity initialSales={recentSales as any} />
     </div>
   );
 }
