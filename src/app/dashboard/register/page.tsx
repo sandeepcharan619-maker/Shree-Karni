@@ -40,10 +40,8 @@ export default function RegisterAssociatePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Registration failed");
 
-      // Save to local cache so Tree View, Direct Team and Downline reflect it immediately
+      // Save to local cache so Tree View, Direct Team, Downline, and Admin Dashboard reflect it immediately
       try {
-        const stored = localStorage.getItem("shreekarni_custom_associates_v1");
-        const list = stored ? JSON.parse(stored) : [];
         const newAssoc = data.user || {
           id: `local-${Date.now()}`,
           name: form.name.trim(),
@@ -61,9 +59,38 @@ export default function RegisterAssociatePage() {
           },
           createdAt: new Date().toISOString(),
         };
-        list.unshift(newAssoc);
-        localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(list));
+
+        const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
+        const cleanId = (newAssoc.id || "").toUpperCase();
+
+        // 1. Unmark from deleted set
+        const delRaw = localStorage.getItem("shreekarni_deleted_associates_v1");
+        if (delRaw) {
+          const delArr = JSON.parse(delRaw);
+          if (Array.isArray(delArr)) {
+            const filtered = delArr.filter(
+              (d) => String(d).toUpperCase() !== cleanMemberId && String(d).toUpperCase() !== cleanId
+            );
+            localStorage.setItem("shreekarni_deleted_associates_v1", JSON.stringify(filtered));
+          }
+        }
+
+        // 2. Save to custom associates list
+        const stored = localStorage.getItem("shreekarni_custom_associates_v1");
+        const list = stored ? JSON.parse(stored) : [];
+        const updated = [
+          newAssoc,
+          ...list.filter((x: any) => (x.memberId || "").toUpperCase() !== cleanMemberId),
+        ];
+        localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
+
+        // 3. Dispatch locally and across tabs
         window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: newAssoc }));
+        if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+          const channel = new BroadcastChannel("shreekarni_associates_channel");
+          channel.postMessage({ type: "ASSOCIATE_REGISTERED", user: newAssoc });
+          setTimeout(() => channel.close(), 1000);
+        }
       } catch (e) {
         console.warn("Storage sync:", e);
       }

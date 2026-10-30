@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -45,11 +45,121 @@ export default function AdminCrmSuite({
   const [leads, setLeads] = useState<LeadItem[]>(initialLeads);
   const [visits, setVisits] = useState<SiteVisitItem[]>(initialVisits);
   const [matchedLead, setMatchedLead] = useState<LeadItem | null>(null);
+  const [associates, setAssociates] = useState<AssociateItem[]>(initialAssociates);
+
+  // Sync associates when initialAssociates prop updates
+  useEffect(() => {
+    if (initialAssociates && initialAssociates.length > 0) {
+      setAssociates((prev) => {
+        const map = new Map<string, AssociateItem>();
+        initialAssociates.forEach((item) => {
+          map.set((item.memberId || item.id).toUpperCase(), item);
+        });
+        prev.forEach((item) => {
+          const key = (item.memberId || item.id).toUpperCase();
+          if (!map.has(key)) map.set(key, item);
+        });
+        return Array.from(map.values());
+      });
+    }
+  }, [initialAssociates]);
+
+  // Keep associates synced with skr-associate-added/updated/deleted events, BroadcastChannel, and live polling
+  useEffect(() => {
+    const handleAssociateAdded = (e: any) => {
+      const newAssoc = e.detail;
+      if (newAssoc) {
+        setAssociates((prev) => {
+          const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
+          const cleanId = (newAssoc.id || "").toUpperCase();
+          return [
+            newAssoc,
+            ...prev.filter(
+              (a) =>
+                (a.memberId || "").toUpperCase() !== cleanMemberId &&
+                (a.id || "").toUpperCase() !== cleanId
+            ),
+          ];
+        });
+      }
+    };
+
+    const handleAssociateDeleted = (e: any) => {
+      const { id, memberId } = e.detail || {};
+      setAssociates((prev) =>
+        prev.filter((a) => {
+          if (id && a.id === id) return false;
+          if (memberId && (a.memberId || "").toUpperCase() === (memberId || "").toUpperCase()) return false;
+          return true;
+        })
+      );
+    };
+
+    const handleAssociateUpdated = (e: any) => {
+      const updated = e.detail;
+      if (updated && (updated.id || updated.memberId)) {
+        setAssociates((prev) =>
+          prev.map((a) =>
+            a.id === updated.id || (a.memberId && a.memberId === updated.memberId)
+              ? { ...a, ...updated }
+              : a
+          )
+        );
+      }
+    };
+
+    window.addEventListener("skr-associate-added", handleAssociateAdded);
+    window.addEventListener("skr-associate-deleted", handleAssociateDeleted);
+    window.addEventListener("skr-associate-updated", handleAssociateUpdated);
+
+    // Cross-tab real-time sync
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        channel = new BroadcastChannel("shreekarni_associates_channel");
+        channel.onmessage = (event) => {
+          if (event.data?.type === "ASSOCIATE_REGISTERED" && event.data.user) {
+            handleAssociateAdded({ detail: event.data.user });
+          }
+        };
+      }
+    } catch {}
+
+    // 4-second live poll to catch website signups automatically
+    const pollInterval = setInterval(() => {
+      fetch(`/api/admin/associates?_t=${Date.now()}`, { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setAssociates((prev) => {
+              const map = new Map<string, AssociateItem>();
+              data.forEach((item) => {
+                map.set((item.memberId || item.id).toUpperCase(), item);
+              });
+              prev.forEach((item) => {
+                const key = (item.memberId || item.id).toUpperCase();
+                if (!map.has(key)) map.set(key, item);
+              });
+              return Array.from(map.values());
+            });
+          }
+        })
+        .catch(() => {});
+    }, 4000);
+
+    return () => {
+      window.removeEventListener("skr-associate-added", handleAssociateAdded);
+      window.removeEventListener("skr-associate-deleted", handleAssociateDeleted);
+      window.removeEventListener("skr-associate-updated", handleAssociateUpdated);
+      if (channel) channel.close();
+      clearInterval(pollInterval);
+    };
+  }, []);
 
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [isScheduleVisitOpen, setIsScheduleVisitOpen] = useState(false);
 
-  const sponsorOptions = initialAssociates.map((a) => ({
+  const sponsorOptions = associates.map((a) => ({
     id: a.id,
     name: a.name,
     memberId: a.memberId,
@@ -65,7 +175,7 @@ export default function AdminCrmSuite({
     { id: "leads", label: "Leads & Enquiries", icon: Users, badge: leads.length },
     { id: "visits", label: "Site Visits", icon: Car, badge: visits.length },
     { id: "matching", label: "Property Matcher", icon: Compass },
-    { id: "associates", label: "Associates Network", icon: Users, badge: totalAssociatesCount },
+    { id: "associates", label: "Associates Network", icon: Users, badge: associates.length },
     { id: "plots", label: "Plots Inventory", icon: MapPin, badge: availablePlotsCount },
     { id: "sales", label: "Sales Activity", icon: Banknote },
   ];
@@ -187,7 +297,7 @@ export default function AdminCrmSuite({
         {activeTab === "associates" && (
           <div className="bg-white p-6 rounded-xl shadow-xs border border-gray-200">
             <AssociatesManager
-              initialAssociates={initialAssociates}
+              initialAssociates={associates}
               title="All Associates Network"
               subtitle="Manage sales team members, view downlines, update rank tiers, and edit member options"
             />

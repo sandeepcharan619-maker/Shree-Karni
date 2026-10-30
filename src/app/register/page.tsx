@@ -48,10 +48,37 @@ function RegisterForm() {
 
       if (data.user) {
         try {
+          // 1. Dispatch custom event for current window
           window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: data.user }));
+
+          // 2. Broadcast across all open tabs in real-time
+          if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+            const channel = new BroadcastChannel("shreekarni_associates_channel");
+            channel.postMessage({ type: "ASSOCIATE_REGISTERED", user: data.user });
+            setTimeout(() => channel.close(), 1000);
+          }
+
+          // 3. Unmark from deleted set
+          const cleanMemberId = (data.user.memberId || "").toUpperCase();
+          const cleanId = (data.user.id || "").toUpperCase();
+          const delRaw = localStorage.getItem("shreekarni_deleted_associates_v1");
+          if (delRaw) {
+            const delArr = JSON.parse(delRaw);
+            if (Array.isArray(delArr)) {
+              const filtered = delArr.filter(
+                (d) => String(d).toUpperCase() !== cleanMemberId && String(d).toUpperCase() !== cleanId
+              );
+              localStorage.setItem("shreekarni_deleted_associates_v1", JSON.stringify(filtered));
+            }
+          }
+
+          // 4. Save to persistent custom associates store
           const stored = localStorage.getItem("shreekarni_custom_associates_v1");
           const list = stored ? JSON.parse(stored) : [];
-          const updated = [data.user, ...list.filter((x: any) => x.memberId !== data.user.memberId)];
+          const updated = [
+            data.user,
+            ...list.filter((x: any) => (x.memberId || "").toUpperCase() !== cleanMemberId),
+          ];
           localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
         } catch {}
       }

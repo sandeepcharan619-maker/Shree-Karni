@@ -129,7 +129,10 @@ export default function AssociatesManager({
 
     // 2. Fetch live data from /api/admin/associates to ensure complete sync with database
     const fetchLiveAssociates = () => {
-      fetch("/api/admin/associates")
+      fetch(`/api/admin/associates?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (Array.isArray(data)) {
@@ -179,6 +182,22 @@ export default function AssociatesManager({
 
     fetchLiveAssociates();
     window.addEventListener("focus", fetchLiveAssociates);
+
+    // Cross-tab broadcast channel for real-time notification across tabs
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        channel = new BroadcastChannel("shreekarni_associates_channel");
+        channel.onmessage = (event) => {
+          if (event.data?.type === "ASSOCIATE_REGISTERED" && event.data.user) {
+            handleGlobalAssociateAdded({ detail: event.data.user });
+          }
+        };
+      }
+    } catch {}
+
+    // Polling every 4 seconds to catch new associates who sign up on website
+    const pollInterval = setInterval(fetchLiveAssociates, 4000);
 
     // Listen to global associate add/delete events
     const handleGlobalAssociateAdded = (e: any) => {
@@ -246,6 +265,8 @@ export default function AssociatesManager({
     window.addEventListener("skr-associate-updated", handleGlobalAssociateUpdated);
 
     return () => {
+      clearInterval(pollInterval);
+      if (channel) channel.close();
       window.removeEventListener("focus", fetchLiveAssociates);
       window.removeEventListener("skr-associate-added", handleGlobalAssociateAdded);
       window.removeEventListener("skr-associate-deleted", handleGlobalAssociateDeleted);

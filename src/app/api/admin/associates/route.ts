@@ -6,6 +6,9 @@ import { generateNextMemberId } from "@/lib/memberId";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function isAdmin(session: any): boolean {
   if (!session?.user) return false;
   const role = (session.user.role || "").toUpperCase();
@@ -31,7 +34,13 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(associates);
+    return NextResponse.json(associates, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      },
+    });
   } catch (error) {
     console.error("Admin associates GET error:", error);
     return NextResponse.json({ error: "Failed to fetch associates" }, { status: 500 });
