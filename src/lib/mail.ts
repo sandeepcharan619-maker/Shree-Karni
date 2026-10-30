@@ -9,8 +9,7 @@ interface InquiryData {
 
 // Target notification email addresses
 const DEFAULT_NOTIFICATION_EMAILS = [
-  "realesateshreekarni@gmail.com",
-  "realestatekshreekarni@gmail.com",
+  "realestateshreekarni@gmail.com",
 ];
 
 export async function sendInquiryNotification(data: InquiryData): Promise<{ success: boolean; messageId?: string; error?: string }> {

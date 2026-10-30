@@ -39,7 +39,7 @@ export const authOptions: NextAuthOptions = {
                   username: "admin",
                   password: hash,
                   name: "Administrator",
-                  email: "realestatekshreekarni@gmail.com",
+                  email: "realestateshreekarni@gmail.com",
                   role: "ADMIN",
                   rank: "Administrator",
                   memberId: "SKRADMIN",
@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
           return {
             id: "master-admin",
             name: "Administrator",
-            email: "realestatekshreekarni@gmail.com",
+            email: "realestateshreekarni@gmail.com",
             role: "ADMIN",
             memberId: "SKRADMIN",
             username: "admin",

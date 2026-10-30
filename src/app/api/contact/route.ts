@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       console.warn("Could not save lead to database:", dbErr);
     }
 
-    // 2. Dispatch email notification to realesateshreekarni@gmail.com
+    // 2. Dispatch email notification to realestateshreekarni@gmail.com
     const mailResult = await sendInquiryNotification({
       name: cleanName,
       phone: cleanPhone,

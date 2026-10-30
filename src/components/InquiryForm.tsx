@@ -48,7 +48,7 @@ export default function InquiryForm() {
         <h3 className="text-xl font-bold text-gray-900">Inquiry Received!</h3>
         <p className="text-xs text-gray-600 mt-2 max-w-sm mx-auto leading-relaxed">
           Thank you, <span className="font-semibold text-gray-900">{form.name}</span>. Your details have been delivered to our management team at{" "}
-          <span className="font-medium text-blue-600">realesateshreekarni@gmail.com</span>.
+          <span className="font-medium text-blue-600">realestateshreekarni@gmail.com</span>.
         </p>
         <p className="text-xs text-gray-500 mt-2">
           A property advisor will contact you on{" "}

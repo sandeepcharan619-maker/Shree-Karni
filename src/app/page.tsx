@@ -126,8 +126,8 @@ export default async function HomePage() {
               <Phone size={12} className="text-yellow-400" /> +91 8952821872
             </a>
             <span className="text-gray-600">|</span>
-            <a href="mailto:realestatekshreekarni@gmail.com" className="hover:text-yellow-400 transition flex items-center gap-1">
-              <Mail size={12} className="text-yellow-400" /> realestatekshreekarni@gmail.com
+            <a href="mailto:realestateshreekarni@gmail.com" className="hover:text-yellow-400 transition flex items-center gap-1">
+              <Mail size={12} className="text-yellow-400" /> realestateshreekarni@gmail.com
             </a>
           </div>
         </div>
@@ -496,7 +496,7 @@ export default async function HomePage() {
                   </div>
                   <div>
                     <p className="font-semibold text-gray-800">Email Address</p>
-                    <p className="text-xs text-gray-500">realestatekshreekarni@gmail.com</p>
+                    <p className="text-xs text-gray-500">realestateshreekarni@gmail.com</p>
                   </div>
                 </div>
               </div>
@@ -561,7 +561,7 @@ export default async function HomePage() {
               Shree Karni Real Estate<br />
               Main Vatika Road, Jaipur, Rajasthan, India<br />
               Phone: +91 8952821872<br />
-              Email: realestatekshreekarni@gmail.com
+              Email: realestateshreekarni@gmail.com
             </p>
           </div>
         </div>
