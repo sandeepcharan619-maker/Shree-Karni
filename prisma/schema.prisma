@@ -81,31 +81,42 @@ model Sale {
 }
 
 model Lead {
-  id          String   @id @default(cuid())
-  associateId String
-  associate   User     @relation(fields: [associateId], references: [id])
-  name        String
-  phone       String
-  email       String?
-  status      String   @default("NEW") // NEW, CONTACTED, SITE_VISIT, NEGOTIATION, CONVERTED, LOST
-  source      String?  // Walk-in, Referral, Online, etc.
-  notes       String?
-  plotInterest String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String    @id @default(cuid())
+  associateId       String?
+  associate         User?     @relation(fields: [associateId], references: [id])
+  name              String
+  phone             String
+  email             String?
+  status            String    @default("NEW") // NEW, CONTACTED, SITE_VISIT_SCHEDULED, VISITED, NEGOTIATION, WON, LOST
+  source            String?   @default("Website") // Website, WhatsApp, Walk-in, Referral, Meta Ads, 99acres, MagicBricks
+  budget            String?   // e.g. 5-10 Lakhs, 10-20 Lakhs, 20-50 Lakhs, 50L+
+  preferredSizeGaj   Float?
+  preferredLocation String?   @default("Jaipur")
+  plotInterest      String?
+  notes             String?
+  followUpDate      DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model Visitor {
-  id           String   @id @default(cuid())
-  associateId  String
-  associate    User     @relation(fields: [associateId], references: [id])
-  visitorName  String
-  phone        String
-  plotInterest String?
-  visitDate    DateTime @default(now())
-  feedback     String?
-  status       String   @default("VISITED") // VISITED, INTERESTED, NOT_INTERESTED, FOLLOW_UP
-  createdAt    DateTime @default(now())
+  id             String    @id @default(cuid())
+  associateId    String?
+  associate      User?     @relation(fields: [associateId], references: [id])
+  visitorName    String
+  phone          String
+  email          String?
+  projectName    String?   @default("Shree Karni City")
+  plotInterest   String?
+  visitDate      DateTime  @default(now())
+  timeSlot       String?   @default("10:00 AM - 12:00 PM")
+  pickupLocation String?
+  driverOrCab    String?
+  feedback       String?
+  rating         Int?      @default(5)
+  status         String    @default("SCHEDULED") // SCHEDULED, IN_TRANSIT, COMPLETED, CANCELLED, NO_SHOW
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
 }
 
 model Incentive {

@@ -15,6 +15,8 @@ import {
   ChevronRight,
   ChevronDown,
   Trees,
+  Car,
+  Compass,
 } from "lucide-react";
 
 interface SubMenuItem {
@@ -103,7 +105,10 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
   ];
 
   const adminMenuItems: MenuItem[] = [
-    { label: "DashBoard", icon: Gauge, href: "/admin" },
+    { label: "CRM DashBoard", icon: Gauge, href: "/admin" },
+    { label: "Leads & Enquiries", icon: Users, href: "/admin?tab=leads" },
+    { label: "Site Visits", icon: Car, href: "/admin?tab=visits" },
+    { label: "Property Matcher", icon: Compass, href: "/admin?tab=matching" },
     { label: "All Associates", icon: Users, href: "/admin/associates" },
     { label: "Register New Associate", icon: UserPlus, href: "/admin/associates/create" },
     { label: "Plot Manager", icon: Repeat, href: "/admin/plots" },
