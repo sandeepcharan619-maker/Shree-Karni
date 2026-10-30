@@ -113,8 +113,13 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* 3. HERO SECTION (Concept 2 - Clean PropTech Style) */}
-      <section className="relative bg-gradient-to-b from-white via-slate-50/60 to-white py-16 lg:py-24 border-b border-slate-200/70 overflow-hidden">
+      {/* 3. HERO SECTION (Concept 2 - Clean PropTech Style with Sunrise Township Background) */}
+      <section
+        className="relative py-16 lg:py-24 border-b border-slate-200/70 overflow-hidden bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.86) 50%, rgba(255, 255, 255, 0.45) 100%), url('/website-bg.png')`,
+        }}
+      >
         {/* Subtle Tech Dot Background */}
         <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#059669_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
 
@@ -142,8 +147,8 @@ export default async function HomePage() {
           </div>
 
           {/* Quick Metrics Counter (PropTech Cards) */}
-          <div className="mt-14 pt-8 border-t border-slate-200 grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs">
+          <div className="mt-14 pt-8 border-t border-slate-200/80 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white/90 backdrop-blur-md p-5 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-md transition">
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">
                 Plots Delivered
               </span>
@@ -153,7 +158,7 @@ export default async function HomePage() {
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs">
+            <div className="bg-white/90 backdrop-blur-md p-5 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-md transition">
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">
                 Legal Guarantee
               </span>
@@ -163,7 +168,7 @@ export default async function HomePage() {
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs">
+            <div className="bg-white/90 backdrop-blur-md p-5 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-md transition">
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">
                 Active Associates
               </span>
@@ -173,7 +178,7 @@ export default async function HomePage() {
               </span>
             </div>
 
-            <div className="bg-white p-5 rounded-xl border border-slate-200/90 shadow-2xs">
+            <div className="bg-white/90 backdrop-blur-md p-5 rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-md transition">
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider block">
                 Prime City
               </span>
