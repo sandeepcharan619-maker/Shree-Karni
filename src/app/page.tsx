@@ -91,9 +91,6 @@ export default async function HomePage() {
             <Link href="/" className="text-emerald-600 font-bold transition">
               Home
             </Link>
-            <Link href="#calculator" className="hover:text-emerald-600 transition">
-              Plot Calculator
-            </Link>
             <Link href="#amenities" className="hover:text-emerald-600 transition">
               Amenities
             </Link>
@@ -102,6 +99,9 @@ export default async function HomePage() {
             </Link>
             <Link href="#associate" className="hover:text-emerald-600 transition">
               Associate Network
+            </Link>
+            <Link href="#calculator" className="hover:text-emerald-600 transition">
+              Plot Calculator
             </Link>
             <Link href="#contact" className="hover:text-emerald-600 transition">
               Contact
@@ -186,26 +186,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 4. INTERACTIVE PLOT & EMI CALCULATOR SECTION */}
-      <section id="calculator" className="py-20 bg-white border-b border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
-            <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
-              Plan Your Investment
-            </span>
-            <h2 className="text-3xl font-extrabold text-slate-900 mt-1">
-              Plot Budget & Down Payment Calculator
-            </h2>
-            <p className="text-slate-600 text-sm mt-2">
-              Slide to your desired size in GAJ and view instant cost estimates and financing options.
-            </p>
-          </div>
-
-          <PlotCalculator />
-        </div>
-      </section>
-
-      {/* 6. INFRASTRUCTURE & TOWNSHIP AMENITIES */}
+      {/* 4. INFRASTRUCTURE & TOWNSHIP AMENITIES */}
       <section id="amenities" className="py-20 bg-slate-50/60 border-b border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-14">
@@ -437,7 +418,26 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 9. ABOUT US SECTION */}
+      {/* 7. INTERACTIVE PLOT & EMI CALCULATOR SECTION */}
+      <section id="calculator" className="py-20 bg-slate-50/70 border-b border-slate-200/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
+              Plan Your Investment
+            </span>
+            <h2 className="text-3xl font-extrabold text-slate-900 mt-1">
+              Plot Budget & Down Payment Calculator
+            </h2>
+            <p className="text-slate-600 text-sm mt-2">
+              Slide to your desired size in GAJ and view instant cost estimates and financing options.
+            </p>
+          </div>
+
+          <PlotCalculator />
+        </div>
+      </section>
+
+      {/* 8. ABOUT US SECTION */}
       <section id="about" className="py-20 bg-white border-b border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -591,8 +591,10 @@ export default async function HomePage() {
             <h4 className="text-white font-bold text-sm mb-3">Quick Navigation</h4>
             <ul className="space-y-2">
               <li><Link href="/" className="hover:text-emerald-400 transition">Home</Link></li>
-              <li><Link href="#calculator" className="hover:text-emerald-400 transition">Plot Calculator</Link></li>
               <li><Link href="#amenities" className="hover:text-emerald-400 transition">Township Amenities</Link></li>
+              <li><Link href="#why-us" className="hover:text-emerald-400 transition">Why Us</Link></li>
+              <li><Link href="#associate" className="hover:text-emerald-400 transition">Associate Program</Link></li>
+              <li><Link href="#calculator" className="hover:text-emerald-400 transition">Plot Calculator</Link></li>
               <li><Link href="#contact" className="hover:text-emerald-400 transition">Contact Us</Link></li>
             </ul>
           </div>
