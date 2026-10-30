@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import StatusBadge from "@/components/StatusBadge";
 import AddAssociateModal from "@/app/admin/associates/AddAssociateModal";
+import EditAssociateModal from "@/app/admin/associates/EditAssociateModal";
 import AssociateRowActions from "@/app/admin/associates/AssociateRowActions";
-import { Search, Users, CheckCircle2 } from "lucide-react";
+import { Search, Users, CheckCircle2, Edit3, Sparkles } from "lucide-react";
 
 export interface AssociateItem {
   id: string;
@@ -12,9 +13,13 @@ export interface AssociateItem {
   username: string;
   memberId: string;
   phone?: string | null;
+  email?: string | null;
   rank: string;
   isActive: boolean;
   walletBalance: number;
+  customDownline?: number | null;
+  customSalesGaj?: number | null;
+  referredById?: string | null;
   referredBy?: { id?: string; name: string; memberId: string } | null;
   _count?: { referrals: number; sales: number };
   createdAt?: string | Date;
@@ -44,6 +49,7 @@ export default function AssociatesManager({
   const [associates, setAssociates] = useState<AssociateItem[]>(() =>
     initialAssociates.filter((item) => !isSampleAssociate(item))
   );
+  const [editingAssociate, setEditingAssociate] = useState<AssociateItem | null>(null);
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState("ALL");
   const [toast, setToast] = useState<string | null>(null);
@@ -127,13 +133,28 @@ export default function AssociatesManager({
       showToast("Associate removed successfully.");
     };
 
+    const handleGlobalAssociateUpdated = (e: any) => {
+      const updated = e.detail;
+      if (updated && (updated.id || updated.memberId)) {
+        setAssociates((prev) =>
+          prev.map((a) =>
+            a.id === updated.id || (a.memberId && a.memberId === updated.memberId)
+              ? { ...a, ...updated }
+              : a
+          )
+        );
+      }
+    };
+
     window.addEventListener("skr-associate-added", handleGlobalAssociateAdded);
     window.addEventListener("skr-associate-deleted", handleGlobalAssociateDeleted);
+    window.addEventListener("skr-associate-updated", handleGlobalAssociateUpdated);
 
     return () => {
       window.removeEventListener("focus", fetchLiveAssociates);
       window.removeEventListener("skr-associate-added", handleGlobalAssociateAdded);
       window.removeEventListener("skr-associate-deleted", handleGlobalAssociateDeleted);
+      window.removeEventListener("skr-associate-updated", handleGlobalAssociateUpdated);
     };
   }, []);
 
@@ -290,31 +311,157 @@ export default function AssociatesManager({
                 </tr>
               ) : (
                 displayList.map((assoc) => (
-                  <tr key={assoc.id || assoc.memberId} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 text-sm font-semibold text-blue-600">
-                      {assoc.memberId}
-                    </td>
+                  <tr key={assoc.id || assoc.memberId} className="hover:bg-blue-50/40 transition group">
+                    {/* 1. Member ID (editable) */}
                     <td className="px-4 py-3 text-sm">
-                      <div className="font-semibold text-gray-900">{assoc.name}</div>
-                      <div className="text-xs text-gray-400">@{assoc.username}</div>
+                      <button
+                        type="button"
+                        onClick={() => setEditingAssociate(assoc)}
+                        title="Click to edit Member ID"
+                        className="font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1.5 cursor-pointer text-left"
+                      >
+                        <span>{assoc.memberId}</span>
+                        <Edit3 size={12} className="opacity-0 group-hover:opacity-100 text-blue-500 transition" />
+                      </button>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{assoc.phone || "-"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{assoc.rank}</td>
+
+                    {/* 2. Associate Name (editable) */}
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setEditingAssociate(assoc)}
+                        title="Click to edit associate name & details"
+                        className="text-left cursor-pointer group/name block"
+                      >
+                        <div className="font-semibold text-gray-900 group-hover/name:text-blue-600 transition flex items-center gap-1.5">
+                          <span>{assoc.name}</span>
+                          <Edit3 size={12} className="opacity-0 group-hover/name:opacity-100 text-blue-500 transition" />
+                        </div>
+                        <div className="text-xs text-gray-400">@{assoc.username}</div>
+                      </button>
+                    </td>
+
+                    {/* 3. Phone (editable) */}
+                    <td className="px-4 py-3 text-sm text-gray-700 font-mono">
+                      {assoc.phone ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditingAssociate(assoc)}
+                          title="Click to edit phone"
+                          className="hover:text-blue-600 hover:underline cursor-pointer"
+                        >
+                          {assoc.phone}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingAssociate(assoc)}
+                          title="Click to set phone"
+                          className="text-xs text-gray-400 italic hover:text-blue-600 cursor-pointer"
+                        >
+                          + Add phone
+                        </button>
+                      )}
+                    </td>
+
+                    {/* 4. Rank (editable) */}
+                    <td className="px-4 py-3 text-sm">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200">
+                        {assoc.rank}
+                      </span>
+                    </td>
+
+                    {/* 5. Referred By (editable) */}
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      {assoc.referredBy ? `${assoc.referredBy.name} (${assoc.referredBy.memberId})` : "Direct"}
+                      {assoc.referredBy ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditingAssociate(assoc)}
+                          title="Click to change sponsor"
+                          className="text-left hover:text-blue-600 cursor-pointer"
+                        >
+                          <span className="font-medium text-gray-800">{assoc.referredBy.name}</span>
+                          <span className="text-xs text-blue-600 ml-1">({assoc.referredBy.memberId})</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingAssociate(assoc)}
+                          title="Click to assign sponsor"
+                          className="text-xs font-medium text-gray-400 italic hover:text-blue-600 cursor-pointer"
+                        >
+                          Direct / Head Office
+                        </button>
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 font-semibold">
-                      {assoc._count?.referrals || 0}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 font-semibold">
-                      {assoc._count?.sales || 0}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-800">
-                      ₹{(assoc.walletBalance || 0).toLocaleString("en-IN")}
-                    </td>
+
+                    {/* 6. Downline (editable) */}
                     <td className="px-4 py-3 text-sm">
-                      <StatusBadge status={assoc.isActive ? "ACTIVE" : "INACTIVE"} />
+                      <button
+                        type="button"
+                        onClick={() => setEditingAssociate(assoc)}
+                        title="Click to edit downline count"
+                        className="cursor-pointer hover:opacity-80"
+                      >
+                        {assoc.customDownline !== null && assoc.customDownline !== undefined ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 text-xs">
+                            <Sparkles size={11} className="text-purple-500" />
+                            <span>{assoc.customDownline}</span>
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-gray-700">
+                            {assoc._count?.referrals || 0}
+                          </span>
+                        )}
+                      </button>
                     </td>
+
+                    {/* 7. Sales (editable) */}
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setEditingAssociate(assoc)}
+                        title="Click to edit sales (GAJ)"
+                        className="cursor-pointer hover:opacity-80"
+                      >
+                        {assoc.customSalesGaj !== null && assoc.customSalesGaj !== undefined ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded border border-red-200 text-xs">
+                            <Sparkles size={11} className="text-red-500" />
+                            <span>{assoc.customSalesGaj} GAJ</span>
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-gray-700">
+                            {assoc._count?.sales || 0} plots
+                          </span>
+                        )}
+                      </button>
+                    </td>
+
+                    {/* 8. Wallet (editable) */}
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setEditingAssociate(assoc)}
+                        title="Click to edit wallet balance"
+                        className="font-bold text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
+                      >
+                        ₹{(assoc.walletBalance || 0).toLocaleString("en-IN")}
+                      </button>
+                    </td>
+
+                    {/* 9. Status (editable) */}
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => handleAssociateUpdated(assoc.id, { isActive: !assoc.isActive })}
+                        title="Click to toggle status"
+                        className="cursor-pointer"
+                      >
+                        <StatusBadge status={assoc.isActive ? "ACTIVE" : "INACTIVE"} />
+                      </button>
+                    </td>
+
+                    {/* 10. Actions (Edit button, quick rank, activate/deactivate, delete) */}
                     <td className="px-4 py-3 text-sm">
                       <AssociateRowActions
                         id={assoc.id}
@@ -322,6 +469,7 @@ export default function AssociatesManager({
                         memberId={assoc.memberId}
                         isActive={assoc.isActive}
                         currentRank={assoc.rank}
+                        onEdit={() => setEditingAssociate(assoc)}
                         onDeleted={() => handleAssociateDeleted(assoc.id, assoc.memberId)}
                         onUpdated={(updates) => handleAssociateUpdated(assoc.id, updates)}
                       />
@@ -333,6 +481,20 @@ export default function AssociatesManager({
           </table>
         </div>
       </div>
+
+      {/* Edit Associate Modal */}
+      {editingAssociate && (
+        <EditAssociateModal
+          associate={editingAssociate}
+          sponsors={sponsorOptions}
+          isOpen={editingAssociate !== null}
+          onClose={() => setEditingAssociate(null)}
+          onSuccess={(updated) => {
+            handleAssociateUpdated(updated.id, updated);
+            setEditingAssociate(null);
+          }}
+        />
+      )}
     </div>
   );
 }

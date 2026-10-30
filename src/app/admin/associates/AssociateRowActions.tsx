@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, Edit3 } from "lucide-react";
 
 export default function AssociateRowActions({
   id,
@@ -12,6 +12,7 @@ export default function AssociateRowActions({
   currentRank,
   onDeleted,
   onUpdated,
+  onEdit,
 }: {
   id: string;
   name: string;
@@ -20,6 +21,7 @@ export default function AssociateRowActions({
   currentRank: string;
   onDeleted?: () => void;
   onUpdated?: (updates: { isActive?: boolean; rank?: string }) => void;
+  onEdit?: () => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -109,8 +111,25 @@ export default function AssociateRowActions({
   };
 
   return (
-    <div className="flex items-center gap-2">
-      {/* Rank selector */}
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {/* Edit Full Profile Button */}
+      {onEdit && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onEdit();
+          }}
+          title="Edit Member ID, Name, Phone, Rank, Sponsor, Downline, Sales, Wallet, Status"
+          className="flex items-center gap-1 px-2.5 py-1 text-xs rounded font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 border border-blue-200 transition cursor-pointer"
+        >
+          <Edit3 size={13} />
+          <span>Edit</span>
+        </button>
+      )}
+
+      {/* Quick Rank selector */}
       <select
         value={currentRank}
         onChange={(e) => updateRank(e.target.value)}

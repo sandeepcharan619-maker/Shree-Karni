@@ -2,16 +2,38 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function WalletPage() {
   const session = await getServerSession(authOptions);
-  const user = await prisma.user.findUnique({
-    where: { id: session?.user?.id },
-  });
+  const userId = session?.user?.id;
+  const username = session?.user?.username;
+  const memberId = (session?.user as any)?.memberId;
 
-  const paidIncentives = await prisma.incentive.aggregate({
-    where: { associateId: session?.user?.id, status: "PAID" },
-    _sum: { amount: true },
-  });
+  let user = null;
+  if (userId) {
+    user = await prisma.user.findUnique({ where: { id: userId } });
+  }
+  if (!user && (username || memberId)) {
+    user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          username ? { username } : {},
+          memberId ? { memberId } : {},
+        ],
+      },
+    });
+  }
+
+  const effectiveUserId = user?.id || userId;
+
+  const paidIncentives = effectiveUserId
+    ? await prisma.incentive.aggregate({
+        where: { associateId: effectiveUserId, status: "PAID" },
+        _sum: { amount: true },
+      })
+    : { _sum: { amount: 0 } };
 
   return (
     <div>

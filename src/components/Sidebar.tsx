@@ -42,22 +42,29 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [customAvatar, setCustomAvatar] = useState<string | null>(null);
   const [customName, setCustomName] = useState<string | null>(null);
+  const [customMemberId, setCustomMemberId] = useState<string | null>(null);
 
   useEffect(() => {
-    const memberId = session?.user?.memberId || session?.user?.username || "default";
-    const syncProfile = () => {
-      try {
-        const stored = localStorage.getItem(`shreekarni_profile_${memberId.toUpperCase()}`);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed.avatarUrl) setCustomAvatar(parsed.avatarUrl);
-          if (parsed.name) setCustomName(parsed.name);
-        }
-      } catch {}
+    const syncProfileFromDB = () => {
+      fetch("/api/profile")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.user) {
+            if (data.user.name) setCustomName(data.user.name);
+            if (data.user.memberId) setCustomMemberId(data.user.memberId);
+            if (data.user.avatarUrl) setCustomAvatar(data.user.avatarUrl);
+          }
+        })
+        .catch(() => {});
     };
-    syncProfile();
-    window.addEventListener("skr-profile-updated", syncProfile);
-    return () => window.removeEventListener("skr-profile-updated", syncProfile);
+
+    syncProfileFromDB();
+    window.addEventListener("focus", syncProfileFromDB);
+    window.addEventListener("skr-profile-updated", syncProfileFromDB);
+    return () => {
+      window.removeEventListener("focus", syncProfileFromDB);
+      window.removeEventListener("skr-profile-updated", syncProfileFromDB);
+    };
   }, [session]);
 
   const isAdmin = userRole === "ADMIN" || session?.user?.role === "ADMIN";
@@ -136,7 +143,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
               {customName || session?.user?.name || "Pushpendra singh charan"}
             </h4>
             <p className="text-xs text-gray-500 truncate">
-              {session?.user?.memberId || "SKR00001"}
+              {customMemberId || session?.user?.memberId || "SKR00001"}
             </p>
           </div>
         </div>

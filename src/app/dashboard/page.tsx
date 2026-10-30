@@ -6,53 +6,107 @@ import CopyLinkButton from "./CopyLinkButton";
 import { Gauge, Home } from "lucide-react";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AssociateDashboard() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
+  const username = session?.user?.username;
+  const memberId = (session?.user as any)?.memberId;
 
-  // Fetch associate data
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      _count: {
-        select: {
-          referrals: true,
-          sales: true,
+  // Fetch associate data with fallbacks to ensure live DB lookup
+  let user = null;
+  if (userId) {
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        _count: {
+          select: {
+            referrals: true,
+            sales: true,
+          },
         },
       },
-    },
-  });
+    });
+  }
+
+  if (!user && (username || memberId)) {
+    user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          username ? { username } : {},
+          memberId ? { memberId } : {},
+        ],
+      },
+      include: {
+        _count: {
+          select: {
+            referrals: true,
+            sales: true,
+          },
+        },
+      },
+    });
+  }
+
+  const effectiveUserId = user?.id || userId;
 
   // Total direct + indirect downline
-  const totalDownline = await prisma.user.count({
-    where: { referredById: userId },
-  });
+  const totalDownline = effectiveUserId
+    ? await prisma.user.count({
+        where: { referredById: effectiveUserId },
+      })
+    : 0;
 
   // Calculate self business in GAJ
-  const selfSalesDetails = await prisma.sale.findMany({
-    where: { soldById: userId },
-    include: { plot: true },
-  });
+  const selfSalesDetails = effectiveUserId
+    ? await prisma.sale.findMany({
+        where: { soldById: effectiveUserId },
+        include: { plot: true },
+      })
+    : [];
   const selfBusinessGaj = selfSalesDetails.reduce(
     (total, sale) => total + (sale.plot?.sizeGaj || 0),
     0
   );
 
   // Total business (self + team) in GAJ
-  const teamMembers = await prisma.user.findMany({
-    where: { referredById: userId },
-    select: { id: true },
-  });
-  const teamIds = [userId!, ...teamMembers.map((m) => m.id)];
+  const teamMembers = effectiveUserId
+    ? await prisma.user.findMany({
+        where: { referredById: effectiveUserId },
+        select: { id: true },
+      })
+    : [];
+  const teamIds = effectiveUserId ? [effectiveUserId, ...teamMembers.map((m) => m.id)] : [];
 
-  const totalSalesDetails = await prisma.sale.findMany({
-    where: { soldById: { in: teamIds } },
-    include: { plot: true },
-  });
+  const totalSalesDetails = teamIds.length > 0
+    ? await prisma.sale.findMany({
+        where: { soldById: { in: teamIds } },
+        include: { plot: true },
+      })
+    : [];
   const totalBusinessGaj = totalSalesDetails.reduce(
     (total, sale) => total + (sale.plot?.sizeGaj || 0),
     0
   );
+
+  // Apply admin custom overrides if set
+  const displayDownline =
+    user?.customDownline !== null && user?.customDownline !== undefined
+      ? user.customDownline
+      : totalDownline;
+
+  const displaySelfBusiness =
+    user?.customSalesGaj !== null && user?.customSalesGaj !== undefined
+      ? user.customSalesGaj
+      : selfBusinessGaj;
+
+  const teamBusiness = Math.max(0, totalBusinessGaj - selfBusinessGaj);
+  const displayTotalBusiness =
+    user?.customSalesGaj !== null && user?.customSalesGaj !== undefined
+      ? user.customSalesGaj + teamBusiness
+      : totalBusinessGaj;
 
   const referralLink = `${
     process.env.NEXTAUTH_URL || "https://shreekarnirealestate.vercel.app"
@@ -97,7 +151,7 @@ export default async function AssociateDashboard() {
         {/* 2. Purple: Total Downline */}
         <DashboardCard
           cardType="downline"
-          topText={totalDownline}
+          topText={displayDownline}
           mainLabel="Total Downline"
         />
 
@@ -111,7 +165,7 @@ export default async function AssociateDashboard() {
         {/* 4. Red: Self Business(GAJ) */}
         <DashboardCard
           cardType="selfBusiness"
-          topText={selfBusinessGaj}
+          topText={displaySelfBusiness}
           mainLabel="Self Business(GAJ)"
         />
 
@@ -125,7 +179,7 @@ export default async function AssociateDashboard() {
         {/* 6. Orange: Total Business(GAJ) */}
         <DashboardCard
           cardType="totalBusiness"
-          topText={totalBusinessGaj}
+          topText={displayTotalBusiness}
           mainLabel="Total Business(GAJ)"
         />
       </div>

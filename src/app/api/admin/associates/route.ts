@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH: Update associate details (status, rank, wallet, etc.)
+// PATCH: Update associate details (status, rank, wallet, memberId, name, phone, sponsor, downline, sales, etc.)
 export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -149,41 +149,186 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, isActive, rank, walletBalance, name, phone, email, password } = body;
+    const {
+      id,
+      memberId,
+      name,
+      phone,
+      email,
+      rank,
+      referredById,
+      customDownline,
+      customSalesGaj,
+      walletBalance,
+      isActive,
+      password,
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Associate ID is required" }, { status: 400 });
     }
 
+    // Find target user first
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id },
+          { memberId: typeof memberId === "string" ? memberId : undefined },
+        ],
+      },
+    });
+
+    if (!targetUser) {
+      return NextResponse.json({ error: "Associate not found" }, { status: 404 });
+    }
+
     const updateData: any = {};
-    if (typeof isActive === "boolean") updateData.isActive = isActive;
-    if (rank) updateData.rank = rank;
-    if (typeof walletBalance === "number") updateData.walletBalance = walletBalance;
-    if (name) updateData.name = name.trim();
-    if (phone) updateData.phone = phone.trim();
-    if (email !== undefined) updateData.email = email ? email.trim() : null;
-    if (password && password.trim().length >= 6) {
+
+    // 1. Member ID
+    if (memberId && typeof memberId === "string" && memberId.trim() !== "") {
+      const cleanMemberId = memberId.trim().toUpperCase();
+      if (cleanMemberId !== targetUser.memberId) {
+        const existing = await prisma.user.findFirst({
+          where: {
+            memberId: cleanMemberId,
+            NOT: { id: targetUser.id },
+          },
+        });
+        if (existing) {
+          return NextResponse.json(
+            { error: `Member ID "${cleanMemberId}" is already taken by ${existing.name}` },
+            { status: 400 }
+          );
+        }
+        updateData.memberId = cleanMemberId;
+      }
+    }
+
+    // 2. Name
+    if (name && typeof name === "string") {
+      updateData.name = name.trim();
+    }
+
+    // 3. Phone
+    if (phone !== undefined) {
+      updateData.phone = typeof phone === "string" ? phone.trim() : null;
+    }
+
+    // 4. Email
+    if (email !== undefined) {
+      updateData.email = email && typeof email === "string" ? email.trim() : null;
+    }
+
+    // 5. Rank
+    if (rank && typeof rank === "string") {
+      updateData.rank = rank;
+    }
+
+    // 6. Referred By / Sponsor
+    if (referredById !== undefined) {
+      if (!referredById || referredById === "" || referredById === "DIRECT" || referredById === "NONE") {
+        updateData.referredById = null;
+      } else {
+        if (referredById === targetUser.id) {
+          return NextResponse.json(
+            { error: "An associate cannot be their own sponsor" },
+            { status: 400 }
+          );
+        }
+        const sponsor = await prisma.user.findUnique({
+          where: { id: referredById },
+        });
+        if (sponsor) {
+          updateData.referredById = sponsor.id;
+        } else {
+          updateData.referredById = null;
+        }
+      }
+    }
+
+    // 7. Custom Downline count override
+    if (customDownline !== undefined) {
+      if (customDownline === "" || customDownline === null) {
+        updateData.customDownline = null;
+      } else {
+        const parsed = parseInt(String(customDownline), 10);
+        updateData.customDownline = isNaN(parsed) ? null : Math.max(0, parsed);
+      }
+    }
+
+    // 8. Custom Sales (GAJ) override
+    if (customSalesGaj !== undefined) {
+      if (customSalesGaj === "" || customSalesGaj === null) {
+        updateData.customSalesGaj = null;
+      } else {
+        const parsed = parseFloat(String(customSalesGaj));
+        updateData.customSalesGaj = isNaN(parsed) ? null : Math.max(0, parsed);
+      }
+    }
+
+    // 9. Wallet Balance
+    if (walletBalance !== undefined) {
+      const parsedWallet = parseFloat(String(walletBalance));
+      updateData.walletBalance = isNaN(parsedWallet) ? 0 : parsedWallet;
+    }
+
+    // 10. Status (Active / Inactive)
+    if (typeof isActive === "boolean") {
+      updateData.isActive = isActive;
+    }
+
+    // 11. Password reset
+    if (password && typeof password === "string" && password.trim().length >= 6) {
       updateData.password = await bcrypt.hash(password.trim(), 10);
     }
 
     const updated = await prisma.user.update({
-      where: { id },
+      where: { id: targetUser.id },
       data: updateData,
+      include: {
+        referredBy: { select: { id: true, name: true, memberId: true } },
+        _count: { select: { referrals: true, sales: true } },
+      },
     });
 
     try {
       revalidatePath("/admin");
       revalidatePath("/admin/associates");
+      revalidatePath("/dashboard");
+      revalidatePath("/dashboard/profile");
+      revalidatePath("/dashboard/incentives/wallet");
+      revalidatePath("/dashboard/team/tree");
+      revalidatePath("/dashboard/team/direct");
+      revalidatePath("/dashboard/team/downline");
     } catch {}
 
     return NextResponse.json({
       success: true,
-      message: "Associate updated successfully",
-      user: { id: updated.id, memberId: updated.memberId, rank: updated.rank, isActive: updated.isActive },
+      message: `Associate ${updated.name} (${updated.memberId}) updated successfully`,
+      user: {
+        id: updated.id,
+        memberId: updated.memberId,
+        name: updated.name,
+        username: updated.username,
+        phone: updated.phone,
+        email: updated.email,
+        rank: updated.rank,
+        walletBalance: updated.walletBalance,
+        customDownline: updated.customDownline,
+        customSalesGaj: updated.customSalesGaj,
+        isActive: updated.isActive,
+        referredById: updated.referredById,
+        referredBy: updated.referredBy,
+        _count: updated._count,
+        createdAt: updated.createdAt,
+      },
     });
   } catch (error: any) {
     console.error("Admin update associate error:", error);
-    return NextResponse.json({ error: "Failed to update associate" }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || "Failed to update associate" },
+      { status: 500 }
+    );
   }
 }
 
