@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/StatusBadge";
 import AddAssociateModal from "@/app/admin/associates/AddAssociateModal";
 import EditAssociateModal from "@/app/admin/associates/EditAssociateModal";
 import AssociateRowActions from "@/app/admin/associates/AssociateRowActions";
-import { Search, Users, CheckCircle2, Edit3, Sparkles } from "lucide-react";
+import { Search, Users, CheckCircle2, Edit3, Sparkles, RefreshCw } from "lucide-react";
 
 export interface AssociateItem {
   id: string;
@@ -36,11 +37,13 @@ export default function AssociatesManager({
   subtitle?: string;
   maxRows?: number;
 }) {
+  const router = useRouter();
   const [associates, setAssociates] = useState<AssociateItem[]>(initialAssociates);
   const [editingAssociate, setEditingAssociate] = useState<AssociateItem | null>(null);
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState("ALL");
   const [toast, setToast] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Sync with initialAssociates prop if it updates from Server Component re-render
   useEffect(() => {
@@ -56,7 +59,8 @@ export default function AssociatesManager({
       localStorage.removeItem("shreekarni_custom_associates_v1");
     } catch {}
 
-    const fetchLiveAssociates = () => {
+    const fetchLiveAssociates = (isManual = false) => {
+      if (isManual) setIsRefreshing(true);
       fetch(`/api/admin/associates?_t=${Date.now()}`, {
         cache: "no-store",
         headers: { "Cache-Control": "no-cache" },
@@ -65,13 +69,20 @@ export default function AssociatesManager({
         .then((data) => {
           if (Array.isArray(data)) {
             setAssociates(data);
+            if (isManual) {
+              showToast(`Associates list refreshed! Total: ${data.length} associates`);
+            }
           }
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          if (isManual) setIsRefreshing(false);
+        });
     };
 
+    const onFocus = () => fetchLiveAssociates(false);
     fetchLiveAssociates();
-    window.addEventListener("focus", fetchLiveAssociates);
+    window.addEventListener("focus", onFocus);
 
     // ─── Server-Sent Events: instant push when a new associate signs up ───
     let sse: EventSource | null = null;
@@ -153,7 +164,7 @@ export default function AssociatesManager({
       clearInterval(pollInterval);
       if (channel) channel.close();
       if (sse) sse.close();
-      window.removeEventListener("focus", fetchLiveAssociates);
+      window.removeEventListener("focus", onFocus);
       window.removeEventListener("skr-associate-added", handleGlobalAssociateAdded);
       window.removeEventListener("skr-associate-deleted", handleGlobalAssociateDeleted);
       window.removeEventListener("skr-associate-updated", handleGlobalAssociateUpdated);
@@ -197,11 +208,18 @@ export default function AssociatesManager({
   };
 
   const filtered = associates.filter((assoc) => {
+    if (!assoc) return false;
+    const name = (assoc.name || "").toLowerCase();
+    const username = (assoc.username || "").toLowerCase();
+    const memberId = (assoc.memberId || "").toLowerCase();
+    const phone = assoc.phone || "";
+    const s = search.toLowerCase();
+
     const matchSearch =
-      assoc.name.toLowerCase().includes(search.toLowerCase()) ||
-      assoc.username.toLowerCase().includes(search.toLowerCase()) ||
-      assoc.memberId.toLowerCase().includes(search.toLowerCase()) ||
-      (assoc.phone && assoc.phone.includes(search));
+      name.includes(s) ||
+      username.includes(s) ||
+      memberId.includes(s) ||
+      phone.includes(search);
 
     const matchRank = rankFilter === "ALL" || assoc.rank === rankFilter;
     return matchSearch && matchRank;
@@ -214,6 +232,26 @@ export default function AssociatesManager({
     name: a.name,
     memberId: a.memberId,
   }));
+
+  const handleManualRefresh = () => {
+    setIsRefreshing(true);
+    fetch(`/api/admin/associates?_t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAssociates(data);
+          showToast(`Associates list refreshed! Total: ${data.length} associates`);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsRefreshing(false);
+        try { router.refresh(); } catch {}
+      });
+  };
 
   return (
     <div className="space-y-4">
@@ -240,6 +278,16 @@ export default function AssociatesManager({
           <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg text-xs transition cursor-pointer border border-gray-300"
+            title="Refresh associates list from database"
+          >
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-blue-600" : "text-gray-600"} />
+            <span>{isRefreshing ? "Refreshing..." : "Refresh List"}</span>
+          </button>
           <AddAssociateModal
             sponsors={sponsorOptions}
             onSuccess={handleAssociateCreated}

@@ -134,8 +134,7 @@ export default function AdminCrmSuite({
       };
     } catch {}
 
-    // 4-second live poll fallback
-    const pollInterval = setInterval(() => {
+    const fetchAssociatesFromApi = () => {
       fetch(`/api/admin/associates?_t=${Date.now()}`, { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
@@ -144,9 +143,17 @@ export default function AdminCrmSuite({
           }
         })
         .catch(() => {});
-    }, 4000);
+    };
+
+    // Immediate fetch on initial mount and when user switches back to window
+    fetchAssociatesFromApi();
+    window.addEventListener("focus", fetchAssociatesFromApi);
+
+    // 4-second live poll fallback
+    const pollInterval = setInterval(fetchAssociatesFromApi, 4000);
 
     return () => {
+      window.removeEventListener("focus", fetchAssociatesFromApi);
       window.removeEventListener("skr-associate-added", handleAssociateAdded);
       window.removeEventListener("skr-associate-deleted", handleAssociateDeleted);
       window.removeEventListener("skr-associate-updated", handleAssociateUpdated);

@@ -3,10 +3,19 @@ import AssociatesManager from "@/components/AssociatesManager";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function AdminAssociatesPage() {
   const associates = await prisma.user.findMany({
-    where: { role: "ASSOCIATE" },
+    where: {
+      NOT: {
+        OR: [
+          { role: "ADMIN" },
+          { username: "admin" },
+          { memberId: "SKRADMIN" },
+        ],
+      },
+    },
     include: {
       referredBy: { select: { id: true, name: true, memberId: true } },
       _count: { select: { referrals: true, sales: true } },

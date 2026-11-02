@@ -3,6 +3,7 @@ import AdminCrmSuite from "@/components/crm/AdminCrmSuite";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function AdminDashboard({
   searchParams,
@@ -12,13 +13,23 @@ export default async function AdminDashboard({
   const resolvedParams = searchParams ? await searchParams : {};
   const initialTab = resolvedParams?.tab || "crm_overview";
 
-  const totalAssociates = await prisma.user.count({ where: { role: "ASSOCIATE" } });
+  const associateFilter = {
+    NOT: {
+      OR: [
+        { role: "ADMIN" },
+        { username: "admin" },
+        { memberId: "SKRADMIN" },
+      ],
+    },
+  };
+
+  const totalAssociates = await prisma.user.count({ where: associateFilter });
   const totalPlots = await prisma.plot.count();
   const availablePlots = await prisma.plot.count({ where: { status: "AVAILABLE" } });
 
   // Fetch all associates for the CRM & manager
   const associates = await prisma.user.findMany({
-    where: { role: "ASSOCIATE" },
+    where: associateFilter,
     include: {
       referredBy: { select: { id: true, name: true, memberId: true } },
       _count: { select: { referrals: true, sales: true } },

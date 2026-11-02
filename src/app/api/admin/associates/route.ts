@@ -28,7 +28,15 @@ export async function GET() {
     }
 
     const associates = await prisma.user.findMany({
-      where: { role: "ASSOCIATE" },
+      where: {
+        NOT: {
+          OR: [
+            { role: "ADMIN" },
+            { username: "admin" },
+            { memberId: "SKRADMIN" },
+          ],
+        },
+      },
       include: {
         _count: { select: { referrals: true, sales: true, leads: true, visitors: true } },
         referredBy: { select: { id: true, name: true, memberId: true } },
@@ -38,7 +46,7 @@ export async function GET() {
 
     return NextResponse.json(associates, {
       headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
         "Pragma": "no-cache",
         "Expires": "0",
       },
