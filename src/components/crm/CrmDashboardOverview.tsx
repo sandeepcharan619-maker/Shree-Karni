@@ -2,7 +2,6 @@
 
 import {
   Users,
-  Car,
   TrendingUp,
   Building2,
   Calendar,
@@ -19,18 +18,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { LeadItem } from "./CrmLeadsManager";
-import { SiteVisitItem } from "./CrmSiteVisitsManager";
 
 export default function CrmDashboardOverview({
   leads = [],
-  visits = [],
   totalPlots = 0,
   availablePlots = 0,
   associates = [],
   onNavigateTab,
 }: {
   leads: LeadItem[];
-  visits: SiteVisitItem[];
   totalPlots: number;
   availablePlots: number;
   associates: Array<{ id: string; name: string; memberId: string }>;
@@ -39,11 +35,9 @@ export default function CrmDashboardOverview({
   const totalLeads = leads.length;
   const newLeads = leads.filter((l) => l.status === "NEW").length;
   const inProgressLeads = leads.filter(
-    (l) => l.status === "CONTACTED" || l.status === "SITE_VISIT_SCHEDULED" || l.status === "VISITED" || l.status === "NEGOTIATION"
+    (l) => l.status === "CONTACTED" || l.status === "NEGOTIATION"
   ).length;
   const wonLeads = leads.filter((l) => l.status === "WON").length;
-  const scheduledVisits = visits.filter((v) => v.status === "SCHEDULED" || v.status === "IN_TRANSIT").length;
-  const completedVisits = visits.filter((v) => v.status === "COMPLETED").length;
 
   const conversionRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(1) : "0.0";
 
@@ -64,8 +58,8 @@ export default function CrmDashboardOverview({
 
   return (
     <div className="space-y-6">
-      {/* 4 Core CRM Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 3 Core CRM Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Total Inquiries */}
         <div
           onClick={() => onNavigateTab && onNavigateTab("leads")}
@@ -79,23 +73,6 @@ export default function CrmDashboardOverview({
             <p className="text-3xl font-extrabold">{totalLeads}</p>
             <p className="text-xs text-blue-100 mt-1 flex items-center gap-1">
               <span>{newLeads} new leads</span> • <span>{inProgressLeads} in pipeline</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Site Visits */}
-        <div
-          onClick={() => onNavigateTab && onNavigateTab("visits")}
-          className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-xl p-5 shadow-xs hover:shadow-md transition cursor-pointer flex flex-col justify-between min-h-[120px]"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-100">Site Visits</span>
-            <Car size={20} className="text-emerald-200" />
-          </div>
-          <div>
-            <p className="text-3xl font-extrabold">{visits.length}</p>
-            <p className="text-xs text-emerald-100 mt-1 flex items-center gap-1">
-              <span>{scheduledVisits} scheduled</span> • <span>{completedVisits} completed</span>
             </p>
           </div>
         </div>
@@ -219,10 +196,8 @@ export default function CrmDashboardOverview({
             {[
               { label: "1. New Leads Received", key: "NEW", color: "bg-blue-500", count: leads.filter((l) => l.status === "NEW").length },
               { label: "2. Contacted & Pre-Qualified", key: "CONTACTED", color: "bg-amber-500", count: leads.filter((l) => l.status === "CONTACTED").length },
-              { label: "3. Site Visit Scheduled", key: "SITE_VISIT_SCHEDULED", color: "bg-purple-500", count: leads.filter((l) => l.status === "SITE_VISIT_SCHEDULED").length },
-              { label: "4. Site Visit Completed", key: "VISITED", color: "bg-indigo-500", count: leads.filter((l) => l.status === "VISITED").length },
-              { label: "5. Negotiation / Token", key: "NEGOTIATION", color: "bg-orange-500", count: leads.filter((l) => l.status === "NEGOTIATION").length },
-              { label: "6. Converted & Booked", key: "WON", color: "bg-emerald-500", count: leads.filter((l) => l.status === "WON").length },
+              { label: "3. Negotiation / Token", key: "NEGOTIATION", color: "bg-orange-500", count: leads.filter((l) => l.status === "NEGOTIATION").length },
+              { label: "4. Converted & Booked", key: "WON", color: "bg-emerald-500", count: leads.filter((l) => l.status === "WON").length },
             ].map((step) => {
               const pct = totalLeads > 0 ? Math.round((step.count / totalLeads) * 100) : 0;
               return (
@@ -293,14 +268,6 @@ export default function CrmDashboardOverview({
             >
               <Compass size={14} />
               <span>Match Properties</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigateTab && onNavigateTab("visits")}
-              className="flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs transition cursor-pointer"
-            >
-              <Car size={14} />
-              <span>Schedule Tour</span>
             </button>
           </div>
         </div>

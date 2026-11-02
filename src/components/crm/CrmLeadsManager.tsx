@@ -19,7 +19,6 @@ import {
   Plus,
 } from "lucide-react";
 import CrmLeadModal from "./CrmLeadModal";
-import CrmSiteVisitModal from "./CrmSiteVisitModal";
 
 export interface LeadItem {
   id: string;
@@ -70,7 +69,6 @@ export default function CrmLeadsManager({
   const [sourceFilter, setSourceFilter] = useState("ALL");
   const [associateFilter, setAssociateFilter] = useState("ALL");
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
-  const [siteVisitLead, setSiteVisitLead] = useState<LeadItem | null>(null);
   const [toast, setToast] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const showToast = (text: string, type: "success" | "error" = "success") => {
@@ -339,14 +337,6 @@ export default function CrmLeadsManager({
                               >
                                 <Phone size={13} />
                               </a>
-                              <button
-                                type="button"
-                                onClick={() => setSiteVisitLead(lead)}
-                                title="Schedule Site Visit"
-                                className="p-1 rounded bg-purple-50 text-purple-700 hover:bg-purple-100 transition"
-                              >
-                                <Calendar size={13} />
-                              </button>
                               {onOpenMatcher && (
                                 <button
                                   type="button"
@@ -478,14 +468,6 @@ export default function CrmLeadsManager({
                             >
                               <Phone size={14} />
                             </a>
-                            <button
-                              type="button"
-                              onClick={() => setSiteVisitLead(lead)}
-                              title="Schedule Site Visit"
-                              className="p-1.5 rounded-md bg-purple-50 text-purple-700 hover:bg-purple-100 transition cursor-pointer"
-                            >
-                              <Calendar size={14} />
-                            </button>
                             {onOpenMatcher && (
                               <button
                                 type="button"
@@ -526,24 +508,6 @@ export default function CrmLeadsManager({
           showToast(`Inquiry for ${newLead.name} logged successfully!`);
         }}
       />
-
-      {/* Schedule Site Visit Modal from Lead */}
-      {siteVisitLead && (
-        <CrmSiteVisitModal
-          isOpen={siteVisitLead !== null}
-          onClose={() => setSiteVisitLead(null)}
-          associates={associates}
-          initialData={{
-            visitorName: siteVisitLead.name,
-            phone: siteVisitLead.phone,
-            plotInterest: siteVisitLead.plotInterest || `${siteVisitLead.preferredSizeGaj || 150} GAJ (${siteVisitLead.preferredLocation || "Jaipur"})`,
-          }}
-          onSuccess={(visit) => {
-            handleStageChange(siteVisitLead.id, "SITE_VISIT_SCHEDULED");
-            showToast(`Site visit for ${visit.visitorName} scheduled!`);
-          }}
-        />
-      )}
     </div>
   );
 }

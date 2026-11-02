@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
-  Car,
   Compass,
   MapPin,
   Banknote,
@@ -14,18 +13,15 @@ import {
 } from "lucide-react";
 import CrmDashboardOverview from "./CrmDashboardOverview";
 import CrmLeadsManager, { LeadItem } from "./CrmLeadsManager";
-import CrmSiteVisitsManager, { SiteVisitItem } from "./CrmSiteVisitsManager";
 import CrmPropertyMatcher, { PlotMatchItem } from "./CrmPropertyMatcher";
 import AssociatesManager, { AssociateItem } from "@/components/AssociatesManager";
 import PlotsManager, { PlotItem } from "@/components/PlotsManager";
 import RecentSalesActivity from "@/app/admin/RecentSalesActivity";
 import CrmLeadModal from "./CrmLeadModal";
-import CrmSiteVisitModal from "./CrmSiteVisitModal";
 
 export default function AdminCrmSuite({
   initialTab = "crm_overview",
   initialLeads = [],
-  initialVisits = [],
   initialPlots = [],
   initialAssociates = [],
   initialRecentSales = [],
@@ -34,7 +30,6 @@ export default function AdminCrmSuite({
 }: {
   initialTab?: string;
   initialLeads: LeadItem[];
-  initialVisits: SiteVisitItem[];
   initialPlots: PlotItem[];
   initialAssociates: AssociateItem[];
   initialRecentSales: any[];
@@ -43,7 +38,6 @@ export default function AdminCrmSuite({
 }) {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [leads, setLeads] = useState<LeadItem[]>(initialLeads);
-  const [visits, setVisits] = useState<SiteVisitItem[]>(initialVisits);
   const [matchedLead, setMatchedLead] = useState<LeadItem | null>(null);
   const [associates, setAssociates] = useState<AssociateItem[]>(initialAssociates);
 
@@ -157,7 +151,6 @@ export default function AdminCrmSuite({
   }, []);
 
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
-  const [isScheduleVisitOpen, setIsScheduleVisitOpen] = useState(false);
 
   const sponsorOptions = associates.map((a) => ({
     id: a.id,
@@ -173,7 +166,6 @@ export default function AdminCrmSuite({
   const navTabs = [
     { id: "crm_overview", label: "CRM Overview", icon: LayoutDashboard },
     { id: "leads", label: "Leads & Enquiries", icon: Users, badge: leads.length },
-    { id: "visits", label: "Site Visits", icon: Car, badge: visits.length },
     { id: "matching", label: "Property Matcher", icon: Compass },
     { id: "associates", label: "Associates Network", icon: Users, badge: associates.length },
     { id: "plots", label: "Plots Inventory", icon: MapPin, badge: availablePlotsCount },
@@ -195,7 +187,7 @@ export default function AdminCrmSuite({
             Admin CRM Control Suite
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Manage inquiries, schedule client site visits, match property inventory, and track sales performance
+            Manage inquiries, match property inventory, track sales performance, and oversee associate team
           </p>
         </div>
 
@@ -207,14 +199,6 @@ export default function AdminCrmSuite({
           >
             <Plus size={15} />
             <span>+ New Lead</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsScheduleVisitOpen(true)}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-lg text-xs transition shadow-xs cursor-pointer"
-          >
-            <Car size={15} />
-            <span>+ Schedule Tour</span>
           </button>
         </div>
       </div>
@@ -257,7 +241,6 @@ export default function AdminCrmSuite({
         {activeTab === "crm_overview" && (
           <CrmDashboardOverview
             leads={leads}
-            visits={visits}
             totalPlots={initialPlots.length}
             availablePlots={availablePlotsCount}
             associates={sponsorOptions}
@@ -274,15 +257,7 @@ export default function AdminCrmSuite({
           />
         )}
 
-        {/* 3. Site Visits */}
-        {activeTab === "visits" && (
-          <CrmSiteVisitsManager
-            initialVisits={visits}
-            associates={sponsorOptions}
-          />
-        )}
-
-        {/* 4. Property Matcher */}
+        {/* 3. Property Matcher */}
         {activeTab === "matching" && (
           <CrmPropertyMatcher
             availablePlots={
@@ -293,7 +268,7 @@ export default function AdminCrmSuite({
           />
         )}
 
-        {/* 5. Associates Network */}
+        {/* 4. Associates Network */}
         {activeTab === "associates" && (
           <div className="bg-white p-6 rounded-xl shadow-xs border border-gray-200">
             <AssociatesManager
@@ -304,7 +279,7 @@ export default function AdminCrmSuite({
           </div>
         )}
 
-        {/* 6. Plots Inventory */}
+        {/* 5. Plots Inventory */}
         {activeTab === "plots" && (
           <div className="bg-white p-6 rounded-xl shadow-xs border border-gray-200">
             <PlotsManager
@@ -316,7 +291,7 @@ export default function AdminCrmSuite({
           </div>
         )}
 
-        {/* 7. Sales Overview */}
+        {/* 6. Sales Overview */}
         {activeTab === "sales" && (
           <RecentSalesActivity initialSales={initialRecentSales} />
         )}
@@ -329,16 +304,6 @@ export default function AdminCrmSuite({
         associates={sponsorOptions}
         onSuccess={(newLead) => {
           setLeads((prev) => [newLead, ...prev]);
-        }}
-      />
-
-      {/* Global Schedule Visit Modal */}
-      <CrmSiteVisitModal
-        isOpen={isScheduleVisitOpen}
-        onClose={() => setIsScheduleVisitOpen(false)}
-        associates={sponsorOptions}
-        onSuccess={(newVisit) => {
-          setVisits((prev) => [newVisit, ...prev]);
         }}
       />
     </div>

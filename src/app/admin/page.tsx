@@ -48,16 +48,6 @@ export default async function AdminDashboard({
     orderBy: { createdAt: "desc" },
   });
 
-  // Fetch CRM site visits
-  const visits = await prisma.visitor.findMany({
-    include: {
-      associate: {
-        select: { id: true, name: true, memberId: true },
-      },
-    },
-    orderBy: { visitDate: "asc" },
-  });
-
   // Recent Sales
   const recentSales = await prisma.sale.findMany({
     take: 10,
@@ -73,7 +63,6 @@ export default async function AdminDashboard({
       <AdminCrmSuite
         initialTab={initialTab}
         initialLeads={leads as any}
-        initialVisits={visits as any}
         initialPlots={plots as any}
         initialAssociates={associates as any}
         initialRecentSales={recentSales as any}
