@@ -72,12 +72,13 @@ export default function CreateAssociateAdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create associate");
 
-      const createdAssoc = {
-        id: data.user?.id || `local-${Date.now()}`,
+      const createdAssoc = data.user || {
+        id: `local-${Date.now()}`,
         name: form.name.trim(),
         username: form.username.trim(),
         memberId: data.memberId,
         phone: form.phone.trim(),
+        email: form.email?.trim() || null,
         rank: form.rank,
         isActive: true,
         walletBalance: form.walletBalance || 0,
@@ -86,33 +87,13 @@ export default function CreateAssociateAdminPage() {
       };
 
       try {
-        const deletedRaw = localStorage.getItem("shreekarni_deleted_associates_v1");
-        if (deletedRaw) {
-          const arr = JSON.parse(deletedRaw);
-          if (Array.isArray(arr)) {
-            const filtered = arr.filter(
-              (x) =>
-                String(x).toUpperCase() !== (createdAssoc.memberId || "").toUpperCase() &&
-                String(x).toUpperCase() !== (createdAssoc.id || "").toUpperCase()
-            );
-            localStorage.setItem("shreekarni_deleted_associates_v1", JSON.stringify(filtered));
-          }
-        }
-        const stored = localStorage.getItem("shreekarni_custom_associates_v1");
-        const list = stored ? JSON.parse(stored) : [];
-        const cleanMemberId = (createdAssoc.memberId || "").toUpperCase();
-        const updated = [
-          createdAssoc,
-          ...list.filter((a: any) => (a.memberId || "").toUpperCase() !== cleanMemberId),
-        ];
-        localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
         window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: createdAssoc }));
       } catch (e) {}
 
       setSuccess(`Associate created successfully! Assigned Member ID: ${data.memberId}`);
       setTimeout(() => {
         router.push("/admin/associates");
-      }, 1000);
+      }, 800);
     } catch (err: any) {
       setError(err.message || "An error occurred");
     } finally {
@@ -169,12 +150,11 @@ export default function CreateAssociateAdminPage() {
             {/* Username */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                Username *
+                Username (Optional)
               </label>
               <input
                 type="text"
-                required
-                placeholder="e.g. ramesh.singh"
+                placeholder="Auto-generated from name"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
                 className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"

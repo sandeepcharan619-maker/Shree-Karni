@@ -71,19 +71,30 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        // 2. Query user from database
+        // 2. Query user from database (allow login via Username, Member ID, Phone, or Email)
         try {
+          const rawInput = credentials.username.trim();
+          const cleanPhone = rawInput.replace(/[^0-9]/g, "");
+
           const user = await prisma.user.findFirst({
             where: {
               OR: [
                 { username: inputUser },
-                { memberId: credentials.username.trim().toUpperCase() },
+                { memberId: rawInput.toUpperCase() },
+                ...(rawInput.includes("@") ? [{ email: inputUser }] : []),
+                ...(cleanPhone.length >= 8
+                  ? [
+                      { phone: rawInput },
+                      { phone: cleanPhone },
+                      { phone: `+91${cleanPhone.slice(-10)}` },
+                    ]
+                  : []),
               ],
             },
           });
 
           if (!user || !user.isActive) {
-            throw new Error("Invalid username/Member ID or account disabled");
+            throw new Error("Invalid username/Member ID/phone or account disabled");
           }
 
           const isValid = await bcrypt.compare(credentials.password, user.password);

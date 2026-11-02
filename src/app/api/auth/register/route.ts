@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateNextMemberId } from "@/lib/memberId";
+import { generateSafeUsername } from "@/lib/username";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 
@@ -11,26 +12,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, username, email, phone, password, referralCode } = body;
 
-    if (!name || !username || !phone || !password) {
-      return NextResponse.json(
-        { error: "Name, username, phone, and password are required" },
-        { status: 400 }
-      );
+    // Validate required fields: name, phone, password
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: "Full Name is required" }, { status: 400 });
+    }
+    if (!phone || !phone.trim()) {
+      return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+    }
+    if (!password || !password.trim()) {
+      return NextResponse.json({ error: "Password is required (min 6 characters)" }, { status: 400 });
     }
 
-    const normalizedUsername = username.toLowerCase().trim();
+    const cleanName = name.trim();
+    const cleanPhone = phone.trim();
+    const cleanEmail = email && typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
 
-    // Check if username is already taken
-    const existing = await prisma.user.findFirst({
-      where: { username: normalizedUsername },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "Username is already registered. Please choose another or login." },
-        { status: 400 }
-      );
-    }
+    // Generate safe, guaranteed-unique username (no collision failures)
+    const finalUsername = await generateSafeUsername(username, cleanName, cleanPhone, cleanEmail);
 
     // Resolve referredById if referralCode was supplied
     let referredById: string | null = null;
@@ -47,16 +45,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Generate unique member ID
+    // Generate guaranteed-unique member ID (e.g. SKR00005)
     const memberId = await generateNextMemberId();
     const hashedPassword = await bcrypt.hash(password.trim(), 10);
 
     const newUser = await prisma.user.create({
       data: {
-        name: name.trim(),
-        username: normalizedUsername,
-        email: email ? email.trim() : null,
-        phone: phone.trim(),
+        name: cleanName,
+        username: finalUsername,
+        email: cleanEmail,
+        phone: cleanPhone,
         password: hashedPassword,
         memberId,
         role: "ASSOCIATE",

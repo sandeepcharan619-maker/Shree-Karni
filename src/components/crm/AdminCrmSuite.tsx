@@ -43,18 +43,8 @@ export default function AdminCrmSuite({
 
   // Sync associates when initialAssociates prop updates
   useEffect(() => {
-    if (initialAssociates && initialAssociates.length > 0) {
-      setAssociates((prev) => {
-        const map = new Map<string, AssociateItem>();
-        initialAssociates.forEach((item) => {
-          map.set((item.memberId || item.id).toUpperCase(), item);
-        });
-        prev.forEach((item) => {
-          const key = (item.memberId || item.id).toUpperCase();
-          if (!map.has(key)) map.set(key, item);
-        });
-        return Array.from(map.values());
-      });
+    if (initialAssociates) {
+      setAssociates(initialAssociates);
     }
   }, [initialAssociates]);
 
@@ -125,17 +115,7 @@ export default function AdminCrmSuite({
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (Array.isArray(data)) {
-            setAssociates((prev) => {
-              const map = new Map<string, AssociateItem>();
-              data.forEach((item) => {
-                map.set((item.memberId || item.id).toUpperCase(), item);
-              });
-              prev.forEach((item) => {
-                const key = (item.memberId || item.id).toUpperCase();
-                if (!map.has(key)) map.set(key, item);
-              });
-              return Array.from(map.values());
-            });
+            setAssociates(data);
           }
         })
         .catch(() => {});

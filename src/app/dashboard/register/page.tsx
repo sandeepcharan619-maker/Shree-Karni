@@ -40,7 +40,6 @@ export default function RegisterAssociatePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Registration failed");
 
-      // Save to local cache so Tree View, Direct Team, Downline, and Admin Dashboard reflect it immediately
       try {
         const newAssoc = data.user || {
           id: `local-${Date.now()}`,
@@ -60,31 +59,7 @@ export default function RegisterAssociatePage() {
           createdAt: new Date().toISOString(),
         };
 
-        const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
-        const cleanId = (newAssoc.id || "").toUpperCase();
-
-        // 1. Unmark from deleted set
-        const delRaw = localStorage.getItem("shreekarni_deleted_associates_v1");
-        if (delRaw) {
-          const delArr = JSON.parse(delRaw);
-          if (Array.isArray(delArr)) {
-            const filtered = delArr.filter(
-              (d) => String(d).toUpperCase() !== cleanMemberId && String(d).toUpperCase() !== cleanId
-            );
-            localStorage.setItem("shreekarni_deleted_associates_v1", JSON.stringify(filtered));
-          }
-        }
-
-        // 2. Save to custom associates list
-        const stored = localStorage.getItem("shreekarni_custom_associates_v1");
-        const list = stored ? JSON.parse(stored) : [];
-        const updated = [
-          newAssoc,
-          ...list.filter((x: any) => (x.memberId || "").toUpperCase() !== cleanMemberId),
-        ];
-        localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
-
-        // 3. Dispatch locally and across tabs
+        // Dispatch locally and across tabs
         window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: newAssoc }));
         if (typeof window !== "undefined" && "BroadcastChannel" in window) {
           const channel = new BroadcastChannel("shreekarni_associates_channel");
@@ -139,8 +114,8 @@ export default function RegisterAssociatePage() {
               <input type="text" name="name" value={form.name} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-              <input type="text" name="username" value={form.username} onChange={handleChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username (Optional)</label>
+              <input type="text" name="username" placeholder="Auto-generated if blank" value={form.username} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>

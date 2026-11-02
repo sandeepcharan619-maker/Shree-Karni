@@ -57,36 +57,13 @@ function RegisterForm() {
             channel.postMessage({ type: "ASSOCIATE_REGISTERED", user: data.user });
             setTimeout(() => channel.close(), 1000);
           }
-
-          // 3. Unmark from deleted set
-          const cleanMemberId = (data.user.memberId || "").toUpperCase();
-          const cleanId = (data.user.id || "").toUpperCase();
-          const delRaw = localStorage.getItem("shreekarni_deleted_associates_v1");
-          if (delRaw) {
-            const delArr = JSON.parse(delRaw);
-            if (Array.isArray(delArr)) {
-              const filtered = delArr.filter(
-                (d) => String(d).toUpperCase() !== cleanMemberId && String(d).toUpperCase() !== cleanId
-              );
-              localStorage.setItem("shreekarni_deleted_associates_v1", JSON.stringify(filtered));
-            }
-          }
-
-          // 4. Save to persistent custom associates store
-          const stored = localStorage.getItem("shreekarni_custom_associates_v1");
-          const list = stored ? JSON.parse(stored) : [];
-          const updated = [
-            data.user,
-            ...list.filter((x: any) => (x.memberId || "").toUpperCase() !== cleanMemberId),
-          ];
-          localStorage.setItem("shreekarni_custom_associates_v1", JSON.stringify(updated));
         } catch {}
       }
 
-      setSuccess(`Account registered successfully! Your Member ID is: ${data.memberId}. Redirecting to login...`);
+      setSuccess(`Account registered successfully! Your Member ID is: ${data.memberId}. You can log in using your Phone Number, Email, or Member ID. Redirecting...`);
       setTimeout(() => {
         router.push("/login");
-      }, 2000);
+      }, 1800);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -148,20 +125,6 @@ function RegisterForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Username *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. surendra.karni"
-                  value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-800 outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                   Mobile Number *
                 </label>
                 <input
@@ -170,6 +133,19 @@ function RegisterForm() {
                   placeholder="9876543210"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-800 outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Username (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Auto-generated if empty"
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
                   className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-800 outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                 />
               </div>

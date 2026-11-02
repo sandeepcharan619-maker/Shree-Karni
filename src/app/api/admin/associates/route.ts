@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateNextMemberId } from "@/lib/memberId";
+import { generateSafeUsername } from "@/lib/username";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 
@@ -67,50 +68,45 @@ export async function POST(req: NextRequest) {
       walletBalance = 0,
     } = body;
 
-    if (!name || !username || !phone || !password) {
-      return NextResponse.json(
-        { error: "Full Name, Username, Phone number, and Password are required" },
-        { status: 400 }
-      );
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: "Associate Full Name is required" }, { status: 400 });
+    }
+    if (!phone || !phone.trim()) {
+      return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
     }
 
-    const normalizedUsername = username.trim().toLowerCase();
+    const cleanName = name.trim();
+    const cleanPhone = phone.trim();
+    const cleanEmail = email && typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
+    const finalPassword = password && password.trim() ? password.trim() : "password123";
 
-    // Check if username is already taken
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        username: normalizedUsername,
-      },
-    });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: `Username "${username}" is already taken. Please choose another.` },
-        { status: 400 }
-      );
-    }
+    // Auto-generate collision-free safe username if blank or disambiguate if colliding
+    const finalUsername = await generateSafeUsername(username, cleanName, cleanPhone, cleanEmail);
 
     // Verify sponsor / referredBy if provided
     let verifiedReferredById: string | null = null;
+    let sponsorInfo: { id: string; name: string; memberId: string } | null = null;
     if (referredById && referredById.trim()) {
       const sponsor = await prisma.user.findUnique({
         where: { id: referredById.trim() },
+        select: { id: true, name: true, memberId: true },
       });
       if (sponsor) {
         verifiedReferredById = sponsor.id;
+        sponsorInfo = sponsor;
       }
     }
 
-    // Generate safe, collision-free member ID
+    // Generate safe, collision-free member ID (e.g. SKR00005)
     const memberId = await generateNextMemberId();
-    const hashedPassword = await bcrypt.hash(password.trim(), 10);
+    const hashedPassword = await bcrypt.hash(finalPassword, 10);
 
     const newUser = await prisma.user.create({
       data: {
-        name: name.trim(),
-        username: normalizedUsername,
-        phone: phone.trim(),
-        email: email ? email.trim() : null,
+        name: cleanName,
+        username: finalUsername,
+        phone: cleanPhone,
+        email: cleanEmail,
         password: hashedPassword,
         memberId,
         role: "ASSOCIATE",
