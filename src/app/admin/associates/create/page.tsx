@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, UserPlus, RefreshCw } from "lucide-react";
+import { saveToLocalCache } from "@/lib/associatesCache";
 
 interface Sponsor {
   id: string;
@@ -87,6 +88,7 @@ export default function CreateAssociateAdminPage() {
       };
 
       try {
+        saveToLocalCache(createdAssoc);
         window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: createdAssoc }));
       } catch (e) {}
 

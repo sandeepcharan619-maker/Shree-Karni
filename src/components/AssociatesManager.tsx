@@ -7,6 +7,12 @@ import AddAssociateModal from "@/app/admin/associates/AddAssociateModal";
 import EditAssociateModal from "@/app/admin/associates/EditAssociateModal";
 import AssociateRowActions from "@/app/admin/associates/AssociateRowActions";
 import { Search, Users, CheckCircle2, Edit3, Sparkles, RefreshCw } from "lucide-react";
+import {
+  mergeWithLocalCache,
+  saveToLocalCache,
+  removeFromLocalCache,
+  updateInLocalCache,
+} from "@/lib/associatesCache";
 
 export interface AssociateItem {
   id: string;
@@ -48,17 +54,11 @@ export default function AssociatesManager({
   // Sync with initialAssociates prop if it updates from Server Component re-render
   useEffect(() => {
     if (initialAssociates) {
-      setAssociates(initialAssociates);
+      setAssociates(mergeWithLocalCache(initialAssociates));
     }
   }, [initialAssociates]);
 
-  // Clean persistent browser caches and fetch live database associates
   useEffect(() => {
-    try {
-      localStorage.removeItem("shreekarni_deleted_associates_v1");
-      localStorage.removeItem("shreekarni_custom_associates_v1");
-    } catch {}
-
     const fetchLiveAssociates = (isManual = false) => {
       if (isManual) setIsRefreshing(true);
       fetch(`/api/admin/associates?_t=${Date.now()}`, {
@@ -68,9 +68,10 @@ export default function AssociatesManager({
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (Array.isArray(data)) {
-            setAssociates(data);
+            const merged = mergeWithLocalCache(data);
+            setAssociates(merged);
             if (isManual) {
-              showToast(`Associates list refreshed! Total: ${data.length} associates`);
+              showToast(`Associates list refreshed! Total: ${merged.length} associates`);
             }
           }
         })
@@ -118,6 +119,7 @@ export default function AssociatesManager({
     const handleGlobalAssociateAdded = (e: any) => {
       const newAssoc = e.detail;
       if (newAssoc) {
+        saveToLocalCache(newAssoc);
         setAssociates((prev) => [
           newAssoc,
           ...prev.filter(
@@ -133,6 +135,7 @@ export default function AssociatesManager({
 
     const handleGlobalAssociateDeleted = (e: any) => {
       const { id, memberId } = e.detail || {};
+      if (id || memberId) removeFromLocalCache(id, memberId);
       setAssociates((prev) =>
         prev.filter((a) => {
           if (id && a.id === id) return false;
@@ -146,6 +149,7 @@ export default function AssociatesManager({
     const handleGlobalAssociateUpdated = (e: any) => {
       const updated = e.detail;
       if (updated && (updated.id || updated.memberId)) {
+        updateInLocalCache(updated.id, updated);
         setAssociates((prev) =>
           prev.map((a) =>
             a.id === updated.id || (a.memberId && a.memberId === updated.memberId)
@@ -177,6 +181,7 @@ export default function AssociatesManager({
   };
 
   const handleAssociateCreated = (newAssoc: AssociateItem) => {
+    saveToLocalCache(newAssoc);
     setAssociates((prev) => {
       const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
       const cleanId = (newAssoc.id || "").toUpperCase();
@@ -193,6 +198,7 @@ export default function AssociatesManager({
   };
 
   const handleAssociateDeleted = (id: string, memberId: string) => {
+    removeFromLocalCache(id, memberId);
     setAssociates((prev) =>
       prev.filter((a) => {
         if (id && a.id === id) return false;
@@ -204,6 +210,7 @@ export default function AssociatesManager({
   };
 
   const handleAssociateUpdated = (id: string, updates: Partial<AssociateItem>) => {
+    updateInLocalCache(id, updates);
     setAssociates((prev) => prev.map((a) => (a.id === id ? { ...a, ...updates } : a)));
   };
 
@@ -242,8 +249,9 @@ export default function AssociatesManager({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (Array.isArray(data)) {
-          setAssociates(data);
-          showToast(`Associates list refreshed! Total: ${data.length} associates`);
+          const merged = mergeWithLocalCache(data);
+          setAssociates(merged);
+          showToast(`Associates list refreshed! Total: ${merged.length} associates`);
         }
       })
       .catch(() => {})

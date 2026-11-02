@@ -55,7 +55,7 @@ async function main() {
     await git.add({ fs, dir, filepath: file });
   }
 
-  console.log('Creating initial commit...');
+  const commitMsg = process.argv[2] || 'Update Shree Karni Real Estate platform';
   const sha = await git.commit({
     fs,
     dir,
@@ -63,7 +63,7 @@ async function main() {
       name: 'sandeepcharan619-maker',
       email: 'sandeepcharan619@gmail.com',
     },
-    message: 'Initial commit: Shree Karni Real Estate platform with associate & admin dashboards',
+    message: commitMsg,
   });
 
   console.log('Committed successfully! SHA:', sha);

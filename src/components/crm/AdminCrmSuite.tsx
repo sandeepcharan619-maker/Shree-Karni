@@ -18,6 +18,12 @@ import AssociatesManager, { AssociateItem } from "@/components/AssociatesManager
 import PlotsManager, { PlotItem } from "@/components/PlotsManager";
 import RecentSalesActivity from "@/app/admin/RecentSalesActivity";
 import CrmLeadModal from "./CrmLeadModal";
+import {
+  mergeWithLocalCache,
+  saveToLocalCache,
+  removeFromLocalCache,
+  updateInLocalCache,
+} from "@/lib/associatesCache";
 
 export default function AdminCrmSuite({
   initialTab = "crm_overview",
@@ -44,7 +50,7 @@ export default function AdminCrmSuite({
   // Sync associates when initialAssociates prop updates
   useEffect(() => {
     if (initialAssociates) {
-      setAssociates(initialAssociates);
+      setAssociates(mergeWithLocalCache(initialAssociates));
     }
   }, [initialAssociates]);
 
@@ -53,6 +59,7 @@ export default function AdminCrmSuite({
     const handleAssociateAdded = (e: any) => {
       const newAssoc = e.detail;
       if (newAssoc) {
+        saveToLocalCache(newAssoc);
         setAssociates((prev) => {
           const cleanMemberId = (newAssoc.memberId || "").toUpperCase();
           const cleanId = (newAssoc.id || "").toUpperCase();
@@ -70,6 +77,7 @@ export default function AdminCrmSuite({
 
     const handleAssociateDeleted = (e: any) => {
       const { id, memberId } = e.detail || {};
+      if (id || memberId) removeFromLocalCache(id, memberId);
       setAssociates((prev) =>
         prev.filter((a) => {
           if (id && a.id === id) return false;
@@ -82,6 +90,7 @@ export default function AdminCrmSuite({
     const handleAssociateUpdated = (e: any) => {
       const updated = e.detail;
       if (updated && (updated.id || updated.memberId)) {
+        updateInLocalCache(updated.id, updated);
         setAssociates((prev) =>
           prev.map((a) =>
             a.id === updated.id || (a.memberId && a.memberId === updated.memberId)
@@ -139,7 +148,7 @@ export default function AdminCrmSuite({
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (Array.isArray(data)) {
-            setAssociates(data);
+            setAssociates(mergeWithLocalCache(data));
           }
         })
         .catch(() => {});

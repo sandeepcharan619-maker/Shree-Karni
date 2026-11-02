@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { UserCheck, ShieldCheck, ArrowRight } from "lucide-react";
+import { saveToLocalCache } from "@/lib/associatesCache";
 
 function RegisterForm() {
   const router = useRouter();
@@ -48,6 +49,7 @@ function RegisterForm() {
 
       if (data.user) {
         try {
+          saveToLocalCache(data.user);
           // 1. Dispatch custom event for current window
           window.dispatchEvent(new CustomEvent("skr-associate-added", { detail: data.user }));
 

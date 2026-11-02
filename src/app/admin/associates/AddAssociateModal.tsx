@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, X, RefreshCw } from "lucide-react";
+import { saveToLocalCache } from "@/lib/associatesCache";
 
 interface SponsorOption {
   id: string;
@@ -100,6 +101,10 @@ export default function AddAssociateModal({
         _count: { referrals: 0, sales: 0 },
         createdAt: new Date().toISOString(),
       };
+
+      try {
+        saveToLocalCache(createdAssoc);
+      } catch (e) {}
 
       if (onSuccess) {
         onSuccess(createdAssoc);
