@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateNextMemberId } from "@/lib/memberId";
 import { generateSafeUsername } from "@/lib/username";
+import { broadcastAdminEvent } from "@/lib/sse";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 
@@ -124,23 +125,30 @@ export async function POST(req: NextRequest) {
       revalidatePath("/dashboard/team/downline");
     } catch {}
 
+    const userPayload = {
+      id: newUser.id,
+      name: newUser.name,
+      username: newUser.username,
+      memberId: newUser.memberId,
+      rank: newUser.rank,
+      phone: newUser.phone,
+      email: newUser.email,
+      walletBalance: newUser.walletBalance,
+      isActive: newUser.isActive,
+      referredBy: sponsorInfo || (verifiedReferredById ? { id: verifiedReferredById } : null),
+      _count: { referrals: 0, sales: 0 },
+      createdAt: newUser.createdAt,
+    };
+
+    // Push SSE notification to all open admin browser tabs
+    try {
+      broadcastAdminEvent("associate_registered", userPayload);
+    } catch {}
+
     return NextResponse.json({
       success: true,
       memberId: newUser.memberId,
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        username: newUser.username,
-        memberId: newUser.memberId,
-        rank: newUser.rank,
-        phone: newUser.phone,
-        email: newUser.email,
-        walletBalance: newUser.walletBalance,
-        isActive: newUser.isActive,
-        referredBy: verifiedReferredById ? { id: verifiedReferredById } : null,
-        _count: { referrals: 0, sales: 0 },
-        createdAt: newUser.createdAt,
-      },
+      user: userPayload,
       message: `Associate ${newUser.name} created successfully with Member ID: ${newUser.memberId}`,
     });
   } catch (error: any) {

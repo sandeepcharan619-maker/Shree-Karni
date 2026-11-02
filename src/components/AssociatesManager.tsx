@@ -73,6 +73,20 @@ export default function AssociatesManager({
     fetchLiveAssociates();
     window.addEventListener("focus", fetchLiveAssociates);
 
+    // ─── Server-Sent Events: instant push when a new associate signs up ───
+    let sse: EventSource | null = null;
+    try {
+      sse = new EventSource("/api/admin/events");
+      sse.addEventListener("associate_registered", () => {
+        // Pull fresh list from DB immediately on signup event
+        fetchLiveAssociates();
+      });
+      sse.onerror = () => {
+        // SSE errored; fall back to polling only
+        if (sse) { sse.close(); sse = null; }
+      };
+    } catch {}
+
     // Cross-tab broadcast channel for real-time notification across tabs
     let channel: BroadcastChannel | null = null;
     try {
@@ -86,8 +100,8 @@ export default function AssociatesManager({
       }
     } catch {}
 
-    // Polling every 4 seconds to catch new associates who sign up on website
-    const pollInterval = setInterval(fetchLiveAssociates, 4000);
+    // Fallback polling every 5 seconds (catches any missed events)
+    const pollInterval = setInterval(fetchLiveAssociates, 5000);
 
     // Listen to global associate add/delete events
     const handleGlobalAssociateAdded = (e: any) => {
@@ -138,6 +152,7 @@ export default function AssociatesManager({
     return () => {
       clearInterval(pollInterval);
       if (channel) channel.close();
+      if (sse) sse.close();
       window.removeEventListener("focus", fetchLiveAssociates);
       window.removeEventListener("skr-associate-added", handleGlobalAssociateAdded);
       window.removeEventListener("skr-associate-deleted", handleGlobalAssociateDeleted);

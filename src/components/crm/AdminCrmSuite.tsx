@@ -109,7 +109,32 @@ export default function AdminCrmSuite({
       }
     } catch {}
 
-    // 4-second live poll to catch website signups automatically
+    // Server-Sent Events for instant live push
+    let sse: EventSource | null = null;
+    try {
+      sse = new EventSource("/api/admin/events");
+      sse.addEventListener("associate_registered", (event: any) => {
+        try {
+          const user = JSON.parse(event.data);
+          if (user) {
+            handleAssociateAdded({ detail: user });
+          }
+        } catch {
+          // If parse fails, refetch list
+          fetch(`/api/admin/associates?_t=${Date.now()}`, { cache: "no-store" })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+              if (Array.isArray(data)) setAssociates(data);
+            })
+            .catch(() => {});
+        }
+      });
+      sse.onerror = () => {
+        if (sse) { sse.close(); sse = null; }
+      };
+    } catch {}
+
+    // 4-second live poll fallback
     const pollInterval = setInterval(() => {
       fetch(`/api/admin/associates?_t=${Date.now()}`, { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
@@ -126,6 +151,7 @@ export default function AdminCrmSuite({
       window.removeEventListener("skr-associate-deleted", handleAssociateDeleted);
       window.removeEventListener("skr-associate-updated", handleAssociateUpdated);
       if (channel) channel.close();
+      if (sse) sse.close();
       clearInterval(pollInterval);
     };
   }, []);

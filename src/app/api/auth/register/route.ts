@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateNextMemberId } from "@/lib/memberId";
 import { generateSafeUsername } from "@/lib/username";
+import { broadcastAdminEvent } from "@/lib/sse";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 
@@ -70,6 +71,25 @@ export async function POST(req: NextRequest) {
       revalidatePath("/admin/associates");
       revalidatePath("/dashboard/team/direct");
       revalidatePath("/dashboard/team/downline");
+    } catch {}
+
+    // Push SSE event to all open admin browser tabs instantly
+    const userPayload = {
+      id: newUser.id,
+      name: newUser.name,
+      username: newUser.username,
+      memberId: newUser.memberId,
+      phone: newUser.phone,
+      email: newUser.email,
+      rank: newUser.rank,
+      isActive: newUser.isActive,
+      walletBalance: newUser.walletBalance,
+      referredBy: referrerInfo,
+      _count: { referrals: 0, sales: 0 },
+      createdAt: newUser.createdAt,
+    };
+    try {
+      broadcastAdminEvent("associate_registered", userPayload);
     } catch {}
 
     return NextResponse.json({
