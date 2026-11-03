@@ -30,7 +30,7 @@ function LoginForm() {
     const errorParam = searchParams.get("error");
     if (errorParam) {
       if (errorParam === "CredentialsSignin") {
-        setError("Invalid username/Member ID or password.");
+        setError("Invalid email/Member ID or password.");
       } else if (errorParam === "Configuration") {
         setError("Configuration error: Please verify your login credentials.");
       } else {
@@ -120,7 +120,7 @@ function LoginForm() {
             Welcome Back
           </h2>
           <p className="text-xs text-gray-500 text-center mb-6">
-            Sign in to access your Associate Dashboard
+            Sign in with your Email or Member ID to access your dashboard
           </p>
 
           {error && (
@@ -132,13 +132,13 @@ function LoginForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Username or Member ID
+                Email or Member ID
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter Username or Member ID (e.g. SKR00001)"
+                placeholder="Enter Email or Member ID (e.g. SKR00001)"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 outline-none transition-all text-gray-800"
                 required
               />

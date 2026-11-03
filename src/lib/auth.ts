@@ -80,12 +80,11 @@ export const authOptions: NextAuthOptions = {
           const user = await prisma.user.findFirst({
             where: {
               OR: [
-                { username: { equals: rawInput, mode: "insensitive" as const } },
+                { email: { equals: rawInput, mode: "insensitive" as const } },
                 { memberId: { equals: rawInput, mode: "insensitive" as const } },
                 { memberId: { equals: stripped, mode: "insensitive" as const } },
-                ...(rawInput.includes("@")
-                  ? [{ email: { equals: rawInput, mode: "insensitive" as const } }]
-                  : []),
+                { username: { equals: rawInput, mode: "insensitive" as const } },
+                { username: { equals: stripped, mode: "insensitive" as const } },
                 ...(cleanPhone.length >= 8
                   ? [
                       { phone: { equals: rawInput, mode: "insensitive" as const } },
@@ -98,7 +97,7 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!user || !user.isActive) {
-            throw new Error("Invalid username/Member ID/phone or account disabled");
+            throw new Error("Invalid email, Member ID, or password (or account disabled)");
           }
 
           const isValid = await bcrypt.compare(credentials.password, user.password);

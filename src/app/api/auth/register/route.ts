@@ -13,9 +13,17 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { name, username, email, phone, password, referralCode } = body;
 
-    // Validate required fields: name, phone, password
+    // Validate required fields: name, email, phone, password
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "Full Name is required" }, { status: 400 });
+    }
+    if (!email || !email.trim()) {
+      return NextResponse.json({ error: "Email address is required" }, { status: 400 });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 });
     }
     if (!phone || !phone.trim()) {
       return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
@@ -23,10 +31,12 @@ export async function POST(req: NextRequest) {
     if (!password || !password.trim()) {
       return NextResponse.json({ error: "Password is required (min 6 characters)" }, { status: 400 });
     }
+    if (password.trim().length < 6) {
+      return NextResponse.json({ error: "Password must be at least 6 characters long" }, { status: 400 });
+    }
 
     const cleanName = name.trim();
     const cleanPhone = phone.trim();
-    const cleanEmail = email && typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
 
     // 1. Verify phone number does not already exist
     const digitsOnly = cleanPhone.replace(/[^0-9]/g, "");
@@ -50,20 +60,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Verify email does not already exist (if provided)
-    if (cleanEmail) {
-      const existingEmail = await prisma.user.findFirst({
-        where: {
-          email: { equals: cleanEmail, mode: "insensitive" as const },
-        },
-        select: { id: true, memberId: true },
-      });
-      if (existingEmail) {
-        return NextResponse.json(
-          { error: `An account with this email address already exists (${existingEmail.memberId}). Please log in or use a different email.` },
-          { status: 400 }
-        );
-      }
+    // 2. Verify email does not already exist
+    const existingEmail = await prisma.user.findFirst({
+      where: {
+        email: { equals: cleanEmail, mode: "insensitive" as const },
+      },
+      select: { id: true, memberId: true },
+    });
+    if (existingEmail) {
+      return NextResponse.json(
+        { error: `An account with this email address already exists (${existingEmail.memberId}). Please log in or use a different email.` },
+        { status: 400 }
+      );
     }
 
     // Generate safe, guaranteed-unique username (no collision failures)
