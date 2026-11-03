@@ -34,6 +34,44 @@ export async function POST(req: NextRequest) {
     const cleanPhone = phone.trim();
     const cleanEmail = email && typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null;
 
+    // 1. Verify phone number does not already exist
+    const digitsOnly = cleanPhone.replace(/[^0-9]/g, "");
+    const standard10 = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : "";
+    const phoneQueries: any[] = [
+      { phone: { equals: cleanPhone, mode: "insensitive" as const } },
+      { phone: { equals: digitsOnly, mode: "insensitive" as const } },
+    ];
+    if (standard10.length === 10) {
+      phoneQueries.push({ phone: { endsWith: standard10 } });
+    }
+
+    const existingPhone = await prisma.user.findFirst({
+      where: { OR: phoneQueries },
+      select: { id: true, memberId: true },
+    });
+    if (existingPhone) {
+      return NextResponse.json(
+        { error: `An associate with this phone number already exists (${existingPhone.memberId}). Please use a different phone number.` },
+        { status: 400 }
+      );
+    }
+
+    // 2. Verify email does not already exist (if provided)
+    if (cleanEmail) {
+      const existingEmail = await prisma.user.findFirst({
+        where: {
+          email: { equals: cleanEmail, mode: "insensitive" as const },
+        },
+        select: { id: true, memberId: true },
+      });
+      if (existingEmail) {
+        return NextResponse.json(
+          { error: `An associate with this email address already exists (${existingEmail.memberId}). Please use a different email.` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Generate safe, collision-free unique username
     const finalUsername = await generateSafeUsername(username, cleanName, cleanPhone, cleanEmail);
 
