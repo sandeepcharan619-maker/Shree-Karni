@@ -74,19 +74,23 @@ export const authOptions: NextAuthOptions = {
         // 2. Query user from database (allow login via Username, Member ID, Phone, or Email)
         try {
           const rawInput = credentials.username.trim();
+          const stripped = rawInput.replace(/\s+/g, "");
           const cleanPhone = rawInput.replace(/[^0-9]/g, "");
 
           const user = await prisma.user.findFirst({
             where: {
               OR: [
-                { username: inputUser },
-                { memberId: rawInput.toUpperCase() },
-                ...(rawInput.includes("@") ? [{ email: inputUser }] : []),
+                { username: { equals: rawInput, mode: "insensitive" as const } },
+                { memberId: { equals: rawInput, mode: "insensitive" as const } },
+                { memberId: { equals: stripped, mode: "insensitive" as const } },
+                ...(rawInput.includes("@")
+                  ? [{ email: { equals: rawInput, mode: "insensitive" as const } }]
+                  : []),
                 ...(cleanPhone.length >= 8
                   ? [
-                      { phone: rawInput },
-                      { phone: cleanPhone },
-                      { phone: `+91${cleanPhone.slice(-10)}` },
+                      { phone: { equals: rawInput, mode: "insensitive" as const } },
+                      { phone: { equals: cleanPhone, mode: "insensitive" as const } },
+                      { phone: { equals: `+91${cleanPhone.slice(-10)}`, mode: "insensitive" as const } },
                     ]
                   : []),
               ],

@@ -62,7 +62,7 @@ function RegisterForm() {
         } catch {}
       }
 
-      setSuccess(`Account registered successfully! Your Member ID is: ${data.memberId}. You can log in using your Phone Number, Email, or Member ID. Redirecting...`);
+      setSuccess(`Account registered successfully! Assigned Member ID: ${data.memberId}. You can sign in using your Username or Member ID (${data.memberId}). Redirecting to login...`);
       setTimeout(() => {
         router.push("/login");
       }, 1800);
