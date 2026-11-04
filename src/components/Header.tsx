@@ -23,6 +23,8 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
     avatarUrl: "",
   });
 
+  const [unreadNotifs, setUnreadNotifs] = useState<number>(0);
+
   useEffect(() => {
     if (session?.user) {
       setProfileData({
@@ -47,6 +49,50 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
 
   const isAdmin = userRole === "ADMIN" || session?.user?.role === "ADMIN";
 
+  // Dynamic real-time notification listener for Admin
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const fetchUnread = () => {
+      fetch(`/api/admin/notifications?_t=${Date.now()}`, { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (typeof data?.unreadCount === "number") {
+            setUnreadNotifs(data.unreadCount);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 20000);
+
+    let sse: EventSource | null = null;
+    try {
+      sse = new EventSource("/api/admin/events");
+      const handleNewEvent = () => {
+        fetchUnread();
+      };
+      sse.addEventListener("document_uploaded", handleNewEvent);
+      sse.addEventListener("notification_received", handleNewEvent);
+      sse.addEventListener("associate_registered", handleNewEvent);
+      sse.onerror = () => {
+        if (sse) {
+          sse.close();
+          sse = null;
+        }
+      };
+    } catch {}
+
+    return () => {
+      clearInterval(interval);
+      if (sse) {
+        sse.close();
+        sse = null;
+      }
+    };
+  }, [isAdmin]);
+
   return (
     <header className="bg-white border-b border-gray-200 text-gray-800 h-[60px] flex items-center justify-between px-3 md:px-6 fixed top-0 left-0 right-0 z-30 shadow-sm select-none">
       {/* Left side: Hamburger + Dashboard title */}
@@ -66,16 +112,18 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
 
       {/* Right side: Notifications + User pill + Logout */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Notification Bell with red badge */}
+        {/* Notification Bell with real-time dynamic badge */}
         <Link
           href={isAdmin ? "/admin/notifications" : "#"}
           className="relative p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition cursor-pointer"
-          title="Notifications"
+          title={isAdmin ? `Notifications (${unreadNotifs} unread)` : "Notifications"}
         >
           <Bell size={20} strokeWidth={2} />
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-            4
-          </span>
+          {isAdmin && unreadNotifs > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-white shadow-xs animate-pulse">
+              {unreadNotifs > 99 ? "99+" : unreadNotifs}
+            </span>
+          )}
         </Link>
 
         {/* User Pill */}

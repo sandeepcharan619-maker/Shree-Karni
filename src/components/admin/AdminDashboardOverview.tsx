@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -19,6 +19,10 @@ import {
   CalendarCheck,
   Sparkles,
   RefreshCw,
+  Bell,
+  FileText,
+  FileCheck,
+  AlertCircle,
 } from "lucide-react";
 
 interface AdminDashboardOverviewProps {
@@ -37,6 +41,8 @@ interface AdminDashboardOverviewProps {
   recentBookings: any[];
   recentPayments: any[];
   projects: any[];
+  recentNotifications?: any[];
+  pendingKycCount?: number;
 }
 
 export default function AdminDashboardOverview({
@@ -44,8 +50,73 @@ export default function AdminDashboardOverview({
   recentBookings,
   recentPayments,
   projects,
+  recentNotifications = [],
+  pendingKycCount = 0,
 }: AdminDashboardOverviewProps) {
-  const [activeTab, setActiveTab] = useState<"bookings" | "payments">("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "payments" | "notifications">("bookings");
+  const [notifications, setNotifications] = useState<any[]>(recentNotifications);
+  const [kycCount, setKycCount] = useState<number>(pendingKycCount);
+
+  // Sync state if server props change
+  useEffect(() => {
+    setNotifications(recentNotifications);
+  }, [recentNotifications]);
+
+  useEffect(() => {
+    setKycCount(pendingKycCount);
+  }, [pendingKycCount]);
+
+  // Real-time SSE listener for instant document upload notifications in Admin Dashboard
+  useEffect(() => {
+    let sse: EventSource | null = null;
+    try {
+      sse = new EventSource("/api/admin/events");
+      sse.addEventListener("document_uploaded", (e: any) => {
+        try {
+          const data = JSON.parse(e.data);
+          setKycCount((prev) => prev + 1);
+          setNotifications((prev) => [
+            {
+              id: data.notificationId || "temp-" + Date.now(),
+              title: `📄 KYC Document Uploaded: ${data.name} (${data.memberId})`,
+              message: `Associate ${data.name} (${data.memberId}) has uploaded ${(data.docs || []).join(", ")}.`,
+              type: "KYC",
+              link: `/admin/associates?openKyc=${data.associateId}`,
+              isRead: false,
+              createdAt: data.createdAt || new Date().toISOString(),
+            },
+            ...prev,
+          ]);
+        } catch {}
+      });
+
+      sse.addEventListener("notification_received", (e: any) => {
+        try {
+          const data = JSON.parse(e.data);
+          setNotifications((prev) => {
+            if (prev.some((n) => n.id === data.id)) return prev;
+            return [data, ...prev];
+          });
+        } catch {}
+      });
+
+      sse.onerror = () => {
+        if (sse) {
+          sse.close();
+          sse = null;
+        }
+      };
+    } catch {}
+
+    return () => {
+      if (sse) {
+        sse.close();
+        sse = null;
+      }
+    };
+  }, []);
+
+  const unreadNotifsCount = notifications.filter((n) => !n.isRead).length;
 
   const soldPercent = stats.totalPlots > 0 ? Math.round((stats.soldPlots / stats.totalPlots) * 100) : 0;
   const bookedPercent = stats.totalPlots > 0 ? Math.round((stats.bookedPlots / stats.totalPlots) * 100) : 0;
@@ -102,6 +173,38 @@ export default function AdminDashboardOverview({
           </div>
         </div>
       </div>
+
+      {/* Real-time KYC Document Verification Banner */}
+      {kycCount > 0 && (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+              <FileCheck size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">
+                  KYC Action Required
+                </span>
+                <span className="text-xs sm:text-sm font-black text-slate-900">
+                  {kycCount} Associate{kycCount > 1 ? "s Have" : " Has"} Uploaded Documents Awaiting Verification
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-1">
+                Associates have uploaded Aadhaar Card, PAN Card, Photo, Address, or Bank Proof. Review and approve/reject directly.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/admin/associates"
+            className="px-4 py-2.5 rounded-xl bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 font-bold text-xs flex items-center gap-2 self-start sm:self-auto transition shadow-xs shrink-0 cursor-pointer"
+          >
+            <ShieldCheck size={16} />
+            <span>Review KYC Documents</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* 2. TOP 10 SUMMARY KPI CARDS                                     */}
@@ -425,7 +528,7 @@ export default function AdminDashboardOverview({
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         {/* Tab Header */}
         <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
               onClick={() => setActiveTab("bookings")}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
@@ -446,13 +549,39 @@ export default function AdminDashboardOverview({
             >
               Recent Payments Collected ({recentPayments.length})
             </button>
+            <button
+              onClick={() => setActiveTab("notifications")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                activeTab === "notifications"
+                  ? "bg-[#0d1b2a] text-amber-400 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+              }`}
+            >
+              <Bell size={13} />
+              <span>Notifications & KYC ({notifications.length})</span>
+              {unreadNotifsCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              )}
+            </button>
           </div>
 
           <Link
-            href={activeTab === "bookings" ? "/admin/bookings" : "/admin/payments"}
+            href={
+              activeTab === "bookings"
+                ? "/admin/bookings"
+                : activeTab === "payments"
+                ? "/admin/payments"
+                : "/admin/notifications"
+            }
             className="text-xs font-bold text-blue-700 hover:underline flex items-center gap-1 self-end sm:self-auto"
           >
-            <span>View All {activeTab === "bookings" ? "Bookings" : "Payments"}</span>
+            <span>
+              {activeTab === "bookings"
+                ? "View All Bookings"
+                : activeTab === "payments"
+                ? "View All Payments"
+                : "Notification Center"}
+            </span>
             <ArrowRight size={13} />
           </Link>
         </div>
@@ -522,7 +651,7 @@ export default function AdminDashboardOverview({
                 )}
               </tbody>
             </table>
-          ) : (
+          ) : activeTab === "payments" ? (
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="bg-slate-50/60 text-slate-500 uppercase tracking-wider text-[11px] border-b border-slate-100 font-semibold">
                 <tr>
@@ -577,6 +706,84 @@ export default function AdminDashboardOverview({
                 )}
               </tbody>
             </table>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {notifications.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-sm">
+                  No notifications recorded yet. Any new document upload or booking will appear here.
+                </div>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    className={`p-4 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 ${
+                      !n.isRead ? "bg-amber-50/40" : "bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      <div className="p-2.5 rounded-xl bg-slate-100 shrink-0 mt-0.5">
+                        {n.type === "KYC" ? (
+                          <FileCheck size={18} className="text-amber-600" />
+                        ) : n.type === "BOOKING" ? (
+                          <CalendarCheck size={18} className="text-amber-500" />
+                        ) : n.type === "PAYMENT" ? (
+                          <Receipt size={18} className="text-emerald-500" />
+                        ) : n.type === "ASSOCIATE" ? (
+                          <Users size={18} className="text-blue-500" />
+                        ) : (
+                          <Bell size={18} className="text-slate-600" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                            {n.title}
+                          </h4>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                              n.type === "KYC"
+                                ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                : n.type === "PAYMENT"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {n.type === "KYC" ? "KYC Document Upload" : n.type}
+                          </span>
+                          {!n.isRead && (
+                            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1">{n.message}</p>
+                        <span className="text-[10px] text-slate-400 mt-1.5 block">
+                          {new Date(n.createdAt).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}{" "}
+                          •{" "}
+                          {new Date(n.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {n.link && (
+                      <Link
+                        href={n.link}
+                        className="px-3.5 py-1.5 rounded-xl bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 font-bold text-xs flex items-center gap-1.5 shrink-0 transition shadow-xs self-start sm:self-center cursor-pointer"
+                      >
+                        <ShieldCheck size={14} />
+                        <span>{n.type === "KYC" ? "Review & Verify" : "View Details"}</span>
+                        <ArrowRight size={13} />
+                      </Link>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
       </div>

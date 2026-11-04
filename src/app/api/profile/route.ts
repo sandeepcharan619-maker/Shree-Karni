@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { broadcastAdminEvent } from "@/lib/sse";
 
 export const dynamic = "force-dynamic";
 
@@ -177,19 +178,82 @@ export async function PUT(req: Request) {
       },
     });
 
-    // Create an activity log record
-    try {
-      await prisma.activityLog.create({
-        data: {
-          action: "PROFILE_UPDATED",
-          entity: "User",
-          entityId: existingUser.id,
-          performedBy: existingUser.name || "Associate",
-          details: `Associate (${existingUser.memberId}) updated their profile and account settings.`,
-        },
-      });
-    } catch (e) {
-      console.warn("Could not write activity log:", e);
+    // ─── Document Upload Notification & Activity Log ───
+    const uploadedDocs: string[] = [];
+    if (aadhaarDocUrl) uploadedDocs.push("Aadhaar Card");
+    if (panDocUrl) uploadedDocs.push("PAN Card");
+    if (photoDocUrl) uploadedDocs.push("Passport Photo");
+    if (addressDocUrl) uploadedDocs.push("Address Proof");
+    if (bankDocUrl) uploadedDocs.push("Bank Proof (Passbook / Cheque)");
+    if (avatarUrl && !photoDocUrl && avatarUrl !== existingUser.avatarUrl) {
+      uploadedDocs.push("Profile Photograph");
+    }
+
+    if (uploadedDocs.length > 0) {
+      const docListStr = uploadedDocs.join(", ");
+      const assocName = existingUser.name || "Associate";
+      const assocMemberId = existingUser.memberId || "SKR";
+
+      try {
+        const notif = await prisma.notification.create({
+          data: {
+            title: `📄 KYC Document Uploaded: ${assocName} (${assocMemberId})`,
+            message: `Associate ${assocName} (${assocMemberId}) has uploaded ${docListStr} for KYC verification. Please review and verify.`,
+            type: "KYC",
+            link: `/admin/associates?openKyc=${existingUser.id}`,
+            isRead: false,
+          },
+        });
+
+        // Broadcast real-time SSE push to all open admin tabs
+        broadcastAdminEvent("document_uploaded", {
+          associateId: existingUser.id,
+          memberId: assocMemberId,
+          name: assocName,
+          docs: uploadedDocs,
+          notificationId: notif.id,
+          createdAt: notif.createdAt,
+        });
+        broadcastAdminEvent("notification_received", {
+          id: notif.id,
+          title: notif.title,
+          message: notif.message,
+          type: notif.type,
+          link: notif.link,
+          createdAt: notif.createdAt,
+        });
+      } catch (notifErr) {
+        console.error("Failed to create admin notification for document upload:", notifErr);
+      }
+
+      try {
+        await prisma.activityLog.create({
+          data: {
+            action: "DOCUMENTS_UPLOADED",
+            entity: "User",
+            entityId: existingUser.id,
+            performedBy: assocName,
+            details: `Associate (${assocMemberId}) uploaded ${docListStr} for KYC verification.`,
+          },
+        });
+      } catch (actErr) {
+        console.error("Failed to create activity log for document upload:", actErr);
+      }
+    } else {
+      // Create a general profile update activity log if not a document upload
+      try {
+        await prisma.activityLog.create({
+          data: {
+            action: "PROFILE_UPDATED",
+            entity: "User",
+            entityId: existingUser.id,
+            performedBy: existingUser.name || "Associate",
+            details: `Associate (${existingUser.memberId}) updated their profile and account settings.`,
+          },
+        });
+      } catch (e) {
+        console.warn("Could not write activity log:", e);
+      }
     }
 
     const { password, ...safeUser } = updated;

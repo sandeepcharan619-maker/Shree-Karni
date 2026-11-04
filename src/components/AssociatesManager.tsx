@@ -74,6 +74,22 @@ export default function AssociatesManager({
     }
   }, [initialAssociates]);
 
+  // Check for openKyc query param from notifications to auto-open KYC review modal
+  useEffect(() => {
+    if (typeof window !== "undefined" && associates.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const openKycId = urlParams.get("openKyc");
+      if (openKycId) {
+        const found = associates.find(
+          (a) => a.id === openKycId || a.memberId === openKycId
+        );
+        if (found) {
+          setKycAssociate(found);
+        }
+      }
+    }
+  }, [associates]);
+
   useEffect(() => {
     const fetchLiveAssociates = (isManual = false) => {
       if (isManual) setIsRefreshing(true);

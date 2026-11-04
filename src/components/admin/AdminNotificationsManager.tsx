@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -14,6 +14,9 @@ import {
   Send,
   X,
   Megaphone,
+  FileCheck,
+  ShieldCheck,
+  ArrowRight,
 } from "lucide-react";
 
 interface NotificationItem {
@@ -37,6 +40,60 @@ export default function AdminNotificationsManager({
   const [filter, setFilter] = useState("ALL");
   const [isBroadcastOpen, setIsBroadcastOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Sync if props update
+  useEffect(() => {
+    setNotifications(initialNotifications);
+  }, [initialNotifications]);
+
+  // Real-time SSE listener for instant push notifications
+  useEffect(() => {
+    let sse: EventSource | null = null;
+    try {
+      sse = new EventSource("/api/admin/events");
+      sse.addEventListener("document_uploaded", (e: any) => {
+        try {
+          const data = JSON.parse(e.data);
+          setNotifications((prev) => [
+            {
+              id: data.notificationId || "temp-" + Date.now(),
+              title: `📄 KYC Document Uploaded: ${data.name} (${data.memberId})`,
+              message: `Associate ${data.name} (${data.memberId}) has uploaded ${(data.docs || []).join(", ")}.`,
+              type: "KYC",
+              link: `/admin/associates?openKyc=${data.associateId}`,
+              isRead: false,
+              createdAt: data.createdAt || new Date().toISOString(),
+            },
+            ...prev,
+          ]);
+        } catch {}
+      });
+
+      sse.addEventListener("notification_received", (e: any) => {
+        try {
+          const data = JSON.parse(e.data);
+          setNotifications((prev) => {
+            if (prev.some((n) => n.id === data.id)) return prev;
+            return [data, ...prev];
+          });
+        } catch {}
+      });
+
+      sse.onerror = () => {
+        if (sse) {
+          sse.close();
+          sse = null;
+        }
+      };
+    } catch {}
+
+    return () => {
+      if (sse) {
+        sse.close();
+        sse = null;
+      }
+    };
+  }, []);
 
   const [form, setForm] = useState({
     title: "",
@@ -101,6 +158,8 @@ export default function AdminNotificationsManager({
 
   const getIcon = (type: string) => {
     switch (type) {
+      case "KYC":
+        return <FileCheck size={18} className="text-amber-600" />;
       case "BOOKING":
         return <CalendarCheck size={18} className="text-amber-500" />;
       case "PAYMENT":
@@ -149,7 +208,7 @@ export default function AdminNotificationsManager({
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 bg-white p-3 rounded-2xl border border-slate-200">
-        {["ALL", "UNREAD", "BOOKING", "PAYMENT", "ASSOCIATE", "COMMISSION", "SYSTEM"].map((t) => (
+        {["ALL", "UNREAD", "KYC", "BOOKING", "PAYMENT", "ASSOCIATE", "COMMISSION", "SYSTEM"].map((t) => (
           <button
             key={t}
             onClick={() => setFilter(t)}
@@ -159,7 +218,7 @@ export default function AdminNotificationsManager({
                 : "bg-slate-50 text-slate-700 hover:bg-slate-100"
             }`}
           >
-            {t.replace(/_/g, " ")}
+            {t === "KYC" ? "KYC Documents" : t.replace(/_/g, " ")}
           </button>
         ))}
       </div>
@@ -187,7 +246,14 @@ export default function AdminNotificationsManager({
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 className="text-sm font-bold text-slate-900">{n.title}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-slate-900">{n.title}</h4>
+                    {n.type === "KYC" && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                        KYC DOCUMENT
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[10px] text-slate-400 whitespace-nowrap">
                     {new Date(n.createdAt).toLocaleDateString("en-IN")} •{" "}
                     {new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -197,9 +263,11 @@ export default function AdminNotificationsManager({
                 {n.link && (
                   <Link
                     href={n.link}
-                    className="inline-block mt-2 text-xs font-bold text-blue-700 hover:underline"
+                    className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-lg bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 font-bold text-xs transition"
                   >
-                    View Details →
+                    <ShieldCheck size={14} />
+                    <span>{n.type === "KYC" ? "Review & Verify Documents" : "View Details"}</span>
+                    <ArrowRight size={12} />
                   </Link>
                 )}
               </div>

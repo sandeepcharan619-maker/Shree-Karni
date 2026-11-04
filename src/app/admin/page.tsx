@@ -66,7 +66,7 @@ export default async function AdminDashboard() {
   });
   const totalCommission = incentivesAggregate._sum.amount || 0;
 
-  // 5. Recent Activity
+  // 5. Recent Activity & Notifications
   const recentBookings = await prisma.booking.findMany({
     take: 8,
     orderBy: { createdAt: "desc" },
@@ -81,6 +81,25 @@ export default async function AdminDashboard() {
     include: {
       customer: { select: { name: true, customerId: true } },
       plot: { select: { plotNumber: true } },
+    },
+  });
+
+  const recentNotifications = await prisma.notification.findMany({
+    take: 12,
+    orderBy: { createdAt: "desc" },
+  });
+
+  const pendingKycCount = await prisma.user.count({
+    where: {
+      ...associateFilter,
+      kycStatus: "PENDING",
+      OR: [
+        { aadhaarDocUrl: { not: null } },
+        { panDocUrl: { not: null } },
+        { photoDocUrl: { not: null } },
+        { addressDocUrl: { not: null } },
+        { bankDocUrl: { not: null } },
+      ],
     },
   });
 
@@ -110,6 +129,8 @@ export default async function AdminDashboard() {
       recentBookings={recentBookings}
       recentPayments={recentPayments}
       projects={enrichedProjects}
+      recentNotifications={recentNotifications as any}
+      pendingKycCount={pendingKycCount}
     />
   );
 }
