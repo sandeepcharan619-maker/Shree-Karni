@@ -60,7 +60,7 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
         </button>
 
         <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">
-          {isAdmin ? "Admin Dashboard" : "Associate Dashboard"}
+          {isAdmin ? "Admin Dashboard" : "Associate Portal"}
         </h1>
       </div>
 

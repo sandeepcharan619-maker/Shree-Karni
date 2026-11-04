@@ -13,6 +13,7 @@ import {
   Trophy,
   BarChart3,
   Settings,
+  Headphones,
   Gauge,
   UserPlus,
   Repeat,
@@ -71,6 +72,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
     { label: "Rank & Rewards", icon: Trophy, href: "/dashboard#rank-rewards" },
     { label: "Reports", icon: BarChart3, href: "/dashboard#reports" },
     { label: "Profile & Settings", icon: Settings, href: "/dashboard/profile" },
+    { label: "Support", icon: Headphones, href: "tel:+919829123456" },
   ];
 
   // Admin Menu Items
