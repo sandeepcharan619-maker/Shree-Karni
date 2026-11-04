@@ -844,9 +844,6 @@ export default async function AssociateDashboard() {
               <span className="text-[11px] font-bold text-gray-800 group-hover:text-blue-700 leading-tight">
                 Need Help?
               </span>
-              <span className="text-[10px] text-blue-600 font-semibold mt-0.5">
-                8952821872
-              </span>
             </a>
           </div>
         </div>
