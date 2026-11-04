@@ -239,6 +239,16 @@ export default async function AssociateDashboard() {
     process.env.NEXTAUTH_URL || "https://shreekarnirealestate.vercel.app"
   }/register?ref=${associateId}`;
 
+  // Check if KYC is approved by admin (either kycStatus is APPROVED/VERIFIED or all 5 documents approved)
+  const isKycApproved =
+    user?.kycStatus === "APPROVED" ||
+    user?.kycStatus === "VERIFIED" ||
+    (user?.aadhaarStatus === "APPROVED" &&
+      user?.panStatus === "APPROVED" &&
+      user?.photoStatus === "APPROVED" &&
+      user?.addressStatus === "APPROVED" &&
+      user?.bankDocStatus === "APPROVED");
+
   return (
     <div className="space-y-5 max-w-[1600px] mx-auto pb-10">
       {/* ============================================================== */}
@@ -263,13 +273,14 @@ export default async function AssociateDashboard() {
                   <h2 className="text-xl font-extrabold text-gray-900 tracking-tight leading-tight truncate">
                     {associateName}
                   </h2>
-                  {user?.kycStatus === "APPROVED" || user?.kycStatus === "VERIFIED" ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-                      <CheckCircle2 size={11} /> KYC Approved
+                  {isKycApproved ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs">
+                      <CheckCircle2 size={12} className="text-emerald-600" />
+                      <span>KYC Approved</span>
                     </span>
                   ) : (
                     <Link
-                      href="/dashboard/profile"
+                      href="/dashboard/profile?tab=kyc"
                       className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition shadow-2xs"
                       title="Click to view Documents & KYC tab"
                     >
@@ -300,8 +311,8 @@ export default async function AssociateDashboard() {
             </div>
           </div>
 
-          {/* Bottom Card Footer: Joining Date & Current Rank */}
-          <div className="grid grid-cols-2 gap-2 pt-3 text-xs">
+          {/* Bottom Card Footer: Joining Date, Current Rank & KYC Status */}
+          <div className="grid grid-cols-3 gap-2 pt-3 text-xs border-t border-gray-100">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 shrink-0">
                 <Calendar size={16} />
@@ -319,6 +330,26 @@ export default async function AssociateDashboard() {
               <div className="min-w-0">
                 <p className="text-[10px] text-gray-400 font-medium uppercase">Current Rank</p>
                 <p className="font-bold text-amber-700 truncate">{associateRank}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  isKycApproved ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
+                }`}
+              >
+                {isKycApproved ? <CheckCircle2 size={16} /> : <Clock size={16} />}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-gray-400 font-medium uppercase">KYC Status</p>
+                <p
+                  className={`font-bold truncate ${
+                    isKycApproved ? "text-emerald-700" : "text-red-600"
+                  }`}
+                >
+                  {isKycApproved ? "Approved" : "Pending"}
+                </p>
               </div>
             </div>
           </div>
@@ -427,6 +458,66 @@ export default async function AssociateDashboard() {
           </div>
         </div>
       </div>
+
+      {/* KYC Verification Status Banner */}
+      {isKycApproved ? (
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
+              <CheckCircle2 size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900">
+                  Verified Legal Associate
+                </span>
+                <span className="text-xs sm:text-sm font-black text-slate-900">
+                  KYC Approved by Shree Karni Real Estate Admin
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-1">
+                Your Aadhaar Card, PAN Card, Photo, Address, and Bank credentials have been verified and approved. Payouts and associate privileges are fully active.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/profile?tab=kyc"
+            className="px-4 py-2.5 rounded-xl bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 font-bold text-xs flex items-center gap-2 self-start sm:self-auto transition shadow-xs shrink-0 cursor-pointer"
+          >
+            <CheckCircle2 size={14} className="text-emerald-400" />
+            <span>View Approved Documents</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-300 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+              <Clock size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-bold">
+                  pending
+                </span>
+                <span className="text-xs sm:text-sm font-black text-slate-900">
+                  KYC Verification Pending
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-1">
+                Please upload Aadhaar Card, PAN Card, Photo, Address, and Bank details in your profile for admin verification and approval.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/profile?tab=kyc"
+            className="px-4 py-2.5 rounded-xl bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 font-bold text-xs flex items-center gap-2 self-start sm:self-auto transition shadow-xs shrink-0 cursor-pointer"
+          >
+            <span>Upload Documents & KYC</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* ROW 2: MY SALES PERFORMANCE (BAR CHART) + MY RANK & REWARDS   */}
