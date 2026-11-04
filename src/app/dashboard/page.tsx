@@ -101,16 +101,16 @@ export default async function AssociateDashboard() {
         select: { id: true },
       })
     : [];
-  const teamIds = effectiveUserId ? [effectiveUserId, ...teamMembers.map((m) => m.id)] : [];
+  const teamIds = effectiveUserId ? teamMembers.map((m) => m.id) : [];
 
-  const totalSalesDetails = teamIds.length > 0
+  const teamSalesDetails = teamIds.length > 0
     ? await prisma.sale.findMany({
         where: { soldById: { in: teamIds } },
         include: { plot: true },
       })
     : [];
 
-  const totalTeamBusinessAmount = totalSalesDetails.reduce(
+  const totalTeamBusinessAmount = teamSalesDetails.reduce(
     (sum, sale) => sum + (sale.saleAmount || 0),
     0
   );
@@ -145,47 +145,95 @@ export default async function AssociateDashboard() {
       : selfBusinessGaj;
 
   // 6. User profile details based on signed-up user
-  const associateName = user?.name || session?.user?.name || "Amit Kumar";
-  const associateId = user?.memberId || (session?.user as any)?.memberId || "ASR-1024";
-  const associatePhone = user?.phone || "+91 98765 43210";
-  const associateEmail = user?.email || "associate@shreekarnirealestate.in";
+  const associateName = user?.name || session?.user?.name || "Associate";
+  const associateId = user?.memberId || (session?.user as any)?.memberId || "SKR00001";
+  const associatePhone = user?.phone || "No phone linked";
+  const associateEmail = user?.email || "No email linked";
   const associateLocation = user?.city
     ? `${user.city}, ${user.state || "Rajasthan"}`
     : user?.district
     ? `${user.district}, Rajasthan`
     : "Jaipur, Rajasthan";
 
-  const joinDate = user?.createdAt ? new Date(user.createdAt) : new Date("2025-01-15");
+  const joinDate = user?.createdAt ? new Date(user.createdAt) : new Date();
   const formattedJoinDate = joinDate.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
 
-  const associateRank = user?.rank || "Gold Associate";
+  const associateRank = user?.rank || "Client Adviser";
 
-  // 7. Dynamic or fallbacks for KPI metrics
-  const displayPlotsSold = actualPlotsSold > 0 ? actualPlotsSold : 12;
-  const displayTotalBusiness =
-    actualSalesAmount > 0
-      ? `₹ ${actualSalesAmount.toLocaleString("en-IN")}`
-      : "₹ 2,40,00,000";
+  // 7. Dynamic KPI metrics strictly from database (0 for new associates)
+  const displayPlotsSold = actualPlotsSold;
+  const displayTotalBusiness = `₹ ${actualSalesAmount.toLocaleString("en-IN")}`;
+  const displayCommission = `₹ ${totalCommissionEarned.toLocaleString("en-IN")}`;
+  const displayWallet = `₹ ${(user?.walletBalance || 0).toLocaleString("en-IN")}`;
+  const displayTeamMembersCount = displayDownline;
+  const displayTeamBusiness = `₹ ${totalTeamBusinessAmount.toLocaleString("en-IN")}`;
 
-  const displayCommission =
-    totalCommissionEarned > 0
-      ? `₹ ${totalCommissionEarned.toLocaleString("en-IN")}`
-      : "₹ 1,20,00,000";
+  // 8. Dynamic monthly sales aggregation for the last 6 months
+  const now = new Date();
+  const monthsData = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthName = d.toLocaleDateString("en-IN", { month: "short" });
+    const year = d.getFullYear();
+    const month = d.getMonth();
 
-  const displayWallet =
-    user?.walletBalance !== undefined && user.walletBalance !== null && user.walletBalance > 0
-      ? `₹ ${user.walletBalance.toLocaleString("en-IN")}`
-      : "₹ 45,000";
+    const monthlySales = selfSalesDetails.filter((s) => {
+      const sDate = new Date(s.saleDate);
+      return sDate.getFullYear() === year && sDate.getMonth() === month;
+    });
 
-  const displayTeamMembersCount = displayDownline > 0 ? displayDownline : 12;
-  const displayTeamBusiness =
-    totalTeamBusinessAmount > 0
-      ? `₹ ${totalTeamBusinessAmount.toLocaleString("en-IN")}`
-      : "₹ 7,50,00,000";
+    const monthAmount = monthlySales.reduce(
+      (sum, s) => sum + (s.saleAmount || 0),
+      0
+    );
+
+    monthsData.push({
+      month: monthName,
+      amount: monthAmount,
+      count: monthlySales.length,
+    });
+  }
+
+  const maxMonthAmount = Math.max(...monthsData.map((m) => m.amount), 1000000);
+
+  // 9. Dynamic rank progression & target
+  const rankGoals: Record<string, { nextRank: string; targetAmount: number; rewardName: string }> = {
+    "Client Adviser": {
+      nextRank: "Senior Adviser",
+      targetAmount: 2500000,
+      rewardName: "Executive Welcome Kit + Silver Trophy",
+    },
+    "Senior Adviser": {
+      nextRank: "Team Leader",
+      targetAmount: 5000000,
+      rewardName: "Goa Luxury Trip + Special Bonus",
+    },
+    "Team Leader": {
+      nextRank: "Sales Manager",
+      targetAmount: 10000000,
+      rewardName: "Thailand International Tour + Gold Shield",
+    },
+    "Sales Manager": {
+      nextRank: "Director",
+      targetAmount: 25000000,
+      rewardName: "Luxury Car Bonanza + Royal Trophy",
+    },
+  };
+
+  const currentRankInfo = rankGoals[associateRank] || {
+    nextRank: "Senior Adviser",
+    targetAmount: 2500000,
+    rewardName: "Executive Privilege Trophy + Cash Bonus",
+  };
+
+  const rankProgressPercent = Math.min(
+    100,
+    Math.round((actualSalesAmount / currentRankInfo.targetAmount) * 100)
+  );
 
   const referralLink = `${
     process.env.NEXTAUTH_URL || "https://shreekarnirealestate.vercel.app"
@@ -302,11 +350,13 @@ export default async function AssociateDashboard() {
                 <Building size={18} className="text-blue-300" />
               </div>
               <div className="my-1">
-                <h4 className="text-2xl font-black tracking-tight text-white">
-                  {displayPlotsSold} <span className="text-xs font-bold text-emerald-400 font-sans">↑ +2</span>
+                <h4 className="text-2xl font-black tracking-tight text-white font-mono">
+                  {displayPlotsSold}
                 </h4>
               </div>
-              <span className="text-[10px] text-slate-300 font-medium">vs last month</span>
+              <span className="text-[10px] text-slate-300 font-medium">
+                {actualPlotsSold > 0 ? "Approved Sales" : "0 Sold Initially"}
+              </span>
             </div>
 
             {/* 2. Total Business (Vibrant Green gradient) */}
@@ -320,11 +370,13 @@ export default async function AssociateDashboard() {
                 </div>
               </div>
               <div className="my-1">
-                <h4 className="text-lg font-black tracking-tight text-white truncate">
+                <h4 className="text-lg font-black tracking-tight text-white truncate font-mono">
                   {displayTotalBusiness}
                 </h4>
               </div>
-              <span className="text-[10px] text-emerald-200 font-medium">↑ +18% vs last month</span>
+              <span className="text-[10px] text-emerald-200 font-medium">
+                {actualSalesAmount > 0 ? "Direct Turnover" : "Initial Baseline: ₹ 0"}
+              </span>
             </div>
 
             {/* 3. Commission Earned (Purple/Magenta gradient) */}
@@ -336,11 +388,13 @@ export default async function AssociateDashboard() {
                 <Trophy size={18} className="text-amber-300" />
               </div>
               <div className="my-1">
-                <h4 className="text-lg font-black tracking-tight text-white truncate">
+                <h4 className="text-lg font-black tracking-tight text-white truncate font-mono">
                   {displayCommission}
                 </h4>
               </div>
-              <span className="text-[10px] text-purple-200 font-medium">↑ +20% vs last month</span>
+              <span className="text-[10px] text-purple-200 font-medium">
+                {totalCommissionEarned > 0 ? "Credited to Wallet" : "Initial Baseline: ₹ 0"}
+              </span>
             </div>
 
             {/* 4. Wallet Balance (Orange gradient) */}
@@ -352,7 +406,7 @@ export default async function AssociateDashboard() {
                 <Wallet size={18} className="text-white" />
               </div>
               <div className="my-0.5">
-                <h4 className="text-lg font-black tracking-tight text-white truncate">
+                <h4 className="text-lg font-black tracking-tight text-white truncate font-mono">
                   {displayWallet}
                 </h4>
               </div>
@@ -360,7 +414,7 @@ export default async function AssociateDashboard() {
                 href="/dashboard/incentives/wallet"
                 className="inline-block self-start text-[10px] font-bold bg-white text-orange-900 hover:bg-orange-50 px-2.5 py-0.5 rounded shadow-xs transition"
               >
-                Withdraw Now
+                View Wallet
               </Link>
             </div>
           </div>
@@ -374,10 +428,14 @@ export default async function AssociateDashboard() {
         {/* Left: My Sales Performance (60%) */}
         <div className="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
           <div className="bg-[#0d1b2a] text-white px-5 py-3.5 flex items-center justify-between">
-            <h3 className="text-sm font-bold tracking-tight">My Sales Performance</h3>
-            <div className="flex items-center gap-1 text-xs text-slate-300 bg-white/10 hover:bg-white/15 px-2.5 py-1 rounded cursor-pointer transition border border-white/10">
+            <div>
+              <h3 className="text-sm font-bold tracking-tight">My Sales Performance</h3>
+              <p className="text-[10px] text-slate-300">
+                {actualPlotsSold > 0 ? "Real monthly sales growth" : "Initial Baseline: ₹ 0 across all months"}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-slate-300 bg-white/10 px-2.5 py-1 rounded border border-white/10">
               <span>Last 6 Months</span>
-              <span className="text-[10px]">▼</span>
             </div>
           </div>
 
@@ -386,64 +444,65 @@ export default async function AssociateDashboard() {
               {/* Y Axis Guide Lines */}
               <div className="absolute inset-x-0 top-0 bottom-8 flex flex-col justify-between pointer-events-none text-[11px] text-gray-400 font-mono">
                 <div className="border-b border-gray-100 w-full flex items-center justify-between">
-                  <span>1.5Cr</span>
+                  <span>{actualSalesAmount > 0 ? "₹ 1Cr" : "Max"}</span>
                 </div>
                 <div className="border-b border-gray-100 w-full flex items-center justify-between">
-                  <span>1Cr</span>
-                </div>
-                <div className="border-b border-gray-100 w-full flex items-center justify-between">
-                  <span>50L</span>
+                  <span>{actualSalesAmount > 0 ? "₹ 50L" : "Mid"}</span>
                 </div>
                 <div className="border-b border-gray-200 w-full flex items-center justify-between">
-                  <span>0L</span>
+                  <span>₹ 0</span>
                 </div>
               </div>
 
               {/* 6 Bars Container */}
               <div className="relative z-10 pl-10 pr-4 h-48 flex items-end justify-between gap-2 sm:gap-4">
-                {/* 1. Nov */}
-                <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                  <span className="text-[11px] font-bold text-gray-600 opacity-90 group-hover:scale-105 transition">₹70L</span>
-                  <div className="w-full max-w-[46px] bg-[#1f5ea9] rounded-t-md hover:bg-[#194e8c] transition-all h-[38%]" />
-                  <span className="text-xs font-semibold text-gray-500 mt-1">Nov</span>
-                </div>
+                {monthsData.map((m, idx) => {
+                  const isCurrent = idx === monthsData.length - 1;
+                  const heightPercent =
+                    m.amount > 0
+                      ? Math.max(12, Math.min(100, Math.round((m.amount / maxMonthAmount) * 100)))
+                      : 4;
 
-                {/* 2. Dec */}
-                <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                  <span className="text-[11px] font-bold text-gray-600 opacity-90 group-hover:scale-105 transition">₹85L</span>
-                  <div className="w-full max-w-[46px] bg-[#1f5ea9] rounded-t-md hover:bg-[#194e8c] transition-all h-[46%]" />
-                  <span className="text-xs font-semibold text-gray-500 mt-1">Dec</span>
-                </div>
-
-                {/* 3. Jan */}
-                <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                  <span className="text-[11px] font-bold text-gray-600 opacity-90 group-hover:scale-105 transition">₹1.10Cr</span>
-                  <div className="w-full max-w-[46px] bg-[#1f5ea9] rounded-t-md hover:bg-[#194e8c] transition-all h-[60%]" />
-                  <span className="text-xs font-semibold text-gray-500 mt-1">Jan</span>
-                </div>
-
-                {/* 4. Feb */}
-                <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                  <span className="text-[11px] font-bold text-gray-600 opacity-90 group-hover:scale-105 transition">₹1.25Cr</span>
-                  <div className="w-full max-w-[46px] bg-[#1f5ea9] rounded-t-md hover:bg-[#194e8c] transition-all h-[68%]" />
-                  <span className="text-xs font-semibold text-gray-500 mt-1">Feb</span>
-                </div>
-
-                {/* 5. Mar */}
-                <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                  <span className="text-[11px] font-bold text-gray-600 opacity-90 group-hover:scale-105 transition">₹1.40Cr</span>
-                  <div className="w-full max-w-[46px] bg-[#1f5ea9] rounded-t-md hover:bg-[#194e8c] transition-all h-[76%]" />
-                  <span className="text-xs font-semibold text-gray-500 mt-1">Mar</span>
-                </div>
-
-                {/* 6. Apr (Current / Gold Bar) */}
-                <div className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
-                  <span className="text-[11px] font-extrabold text-[#d99424] group-hover:scale-105 transition">₹1.50Cr</span>
-                  <div className="w-full max-w-[46px] bg-gradient-to-t from-[#e9b04c] to-[#f5c66d] rounded-t-md shadow-sm h-[85%]" />
-                  <span className="text-xs font-bold text-gray-800 mt-1">Apr</span>
-                </div>
+                  return (
+                    <div
+                      key={m.month}
+                      className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group"
+                    >
+                      <span
+                        className={`text-[10px] sm:text-[11px] font-bold ${
+                          m.amount > 0
+                            ? isCurrent
+                              ? "text-[#d99424]"
+                              : "text-gray-700"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {m.amount > 0 ? `₹ ${(m.amount / 100000).toFixed(1)}L` : "₹ 0"}
+                      </span>
+                      <div
+                        style={{ height: `${heightPercent}%` }}
+                        className={`w-full max-w-[46px] rounded-t-md transition-all ${
+                          m.amount > 0
+                            ? isCurrent
+                              ? "bg-gradient-to-t from-[#e9b04c] to-[#f5c66d] shadow-sm"
+                              : "bg-[#1f5ea9] hover:bg-[#194e8c]"
+                            : "bg-gray-200"
+                        }`}
+                      />
+                      <span className="text-xs font-semibold text-gray-500 mt-1">
+                        {m.month}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+
+            {actualPlotsSold === 0 && (
+              <p className="text-center text-xs text-gray-400 italic pt-2">
+                No plots sold yet. Once you sell plots, monthly bars will dynamically arrange accordingly.
+              </p>
+            )}
           </div>
         </div>
 
@@ -470,7 +529,7 @@ export default async function AssociateDashboard() {
                     {associateRank}
                   </span>
                   <span className="text-[8px] font-extrabold uppercase tracking-widest mt-1 bg-black/20 px-2 py-0.5 rounded text-amber-100">
-                    Top Performer
+                    {actualPlotsSold > 0 ? "Active Rank" : "Initial Level"}
                   </span>
                 </div>
               </div>
@@ -478,19 +537,22 @@ export default async function AssociateDashboard() {
               {/* Next Rank Goal & Progress */}
               <div className="flex-1 space-y-1.5">
                 <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  Next Rank Target
+                  Next Rank Target ({currentRankInfo.nextRank})
                 </p>
-                <h4 className="text-xl font-black text-gray-900 leading-tight">
-                  ₹ 5,00,00,000
+                <h4 className="text-xl font-black text-gray-900 leading-tight font-mono">
+                  ₹ {currentRankInfo.targetAmount.toLocaleString("en-IN")}
                 </h4>
-                <p className="text-[11px] text-gray-500 font-medium">Total Business</p>
+                <p className="text-[11px] text-gray-500 font-medium">Total Business Requirement</p>
 
                 {/* Progress bar */}
                 <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                  <div className="bg-gradient-to-r from-amber-400 to-orange-500 h-2.5 rounded-full w-[75%]" />
+                  <div
+                    style={{ width: `${rankProgressPercent}%` }}
+                    className="bg-gradient-to-r from-amber-400 to-orange-500 h-2.5 rounded-full transition-all duration-500"
+                  />
                 </div>
                 <div className="flex justify-between text-[10px] font-bold text-gray-500">
-                  <span>Current: 75%</span>
+                  <span>Current: ₹ {actualSalesAmount.toLocaleString("en-IN")} ({rankProgressPercent}%)</span>
                   <span>Goal: 100%</span>
                 </div>
               </div>
@@ -501,7 +563,11 @@ export default async function AssociateDashboard() {
               <Gift size={18} className="text-amber-600 shrink-0" />
               <div className="text-xs">
                 <span className="font-bold text-amber-950">Rewards: </span>
-                <span className="text-amber-900 font-semibold">Luxury Trip + Special Bonus</span>
+                <span className="text-amber-900 font-semibold">
+                  {actualSalesAmount > 0
+                    ? currentRankInfo.rewardName
+                    : "0 Unlocked (Sell plots to qualify for upcoming rank rewards)"}
+                </span>
               </div>
             </div>
           </div>
@@ -560,55 +626,16 @@ export default async function AssociateDashboard() {
                     </tr>
                   ))
                 ) : (
-                  <>
-                    {/* Customer 1 */}
-                    <tr className="hover:bg-gray-50 transition">
-                      <td className="py-3 px-3 text-gray-500 font-semibold">1</td>
-                      <td className="py-3 px-3 font-bold text-gray-800">Rajesh Sharma</td>
-                      <td className="py-3 px-3 text-gray-600">Green Valley</td>
-                      <td className="py-3 px-3 font-semibold text-gray-700">B-12</td>
-                      <td className="py-3 px-3 text-gray-600">200 Sq.Yd</td>
-                      <td className="py-3 px-3 font-bold text-gray-900">₹ 32,00,000</td>
-                      <td className="py-3 px-3 text-gray-500 font-mono text-[11px]">12-04-2026</td>
-                      <td className="py-3 px-3 text-center">
-                        <span className="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-0.5 rounded">
-                          Sold
+                  <tr>
+                    <td colSpan={8} className="py-10 text-center text-gray-500">
+                      <div className="flex flex-col items-center justify-center gap-1.5">
+                        <span className="text-xs font-semibold text-gray-700">No plots sold yet</span>
+                        <span className="text-[11px] text-gray-400">
+                          Your customer bookings and direct plot sales will appear here automatically.
                         </span>
-                      </td>
-                    </tr>
-
-                    {/* Customer 2 */}
-                    <tr className="hover:bg-gray-50 transition">
-                      <td className="py-3 px-3 text-gray-500 font-semibold">2</td>
-                      <td className="py-3 px-3 font-bold text-gray-800">Suresh Mehta</td>
-                      <td className="py-3 px-3 text-gray-600">Royal Residency</td>
-                      <td className="py-3 px-3 font-semibold text-gray-700">C-27</td>
-                      <td className="py-3 px-3 text-gray-600">150 Sq.Yd</td>
-                      <td className="py-3 px-3 font-bold text-gray-900">₹ 24,00,000</td>
-                      <td className="py-3 px-3 text-gray-500 font-mono text-[11px]">10-04-2026</td>
-                      <td className="py-3 px-3 text-center">
-                        <span className="bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-0.5 rounded">
-                          Sold
-                        </span>
-                      </td>
-                    </tr>
-
-                    {/* Customer 3 */}
-                    <tr className="hover:bg-gray-50 transition">
-                      <td className="py-3 px-3 text-gray-500 font-semibold">3</td>
-                      <td className="py-3 px-3 font-bold text-gray-800">Neha Singh</td>
-                      <td className="py-3 px-3 text-gray-600">Dream City</td>
-                      <td className="py-3 px-3 font-semibold text-gray-700">A-18</td>
-                      <td className="py-3 px-3 text-gray-600">250 Sq.Yd</td>
-                      <td className="py-3 px-3 font-bold text-gray-900">₹ 40,00,000</td>
-                      <td className="py-3 px-3 text-gray-500 font-mono text-[11px]">05-04-2026</td>
-                      <td className="py-3 px-3 text-center">
-                        <span className="bg-blue-100 text-blue-800 text-[11px] font-bold px-2 py-0.5 rounded">
-                          Pending
-                        </span>
-                      </td>
-                    </tr>
-                  </>
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -637,7 +664,9 @@ export default async function AssociateDashboard() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Total Earnings</p>
-                  <h4 className="text-base font-extrabold text-gray-900">₹ 1,20,000</h4>
+                  <h4 className="text-base font-extrabold text-gray-900 font-mono">
+                    ₹ {totalCommissionEarned.toLocaleString("en-IN")}
+                  </h4>
                 </div>
               </div>
             </div>
@@ -650,7 +679,9 @@ export default async function AssociateDashboard() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Paid Commission</p>
-                  <h4 className="text-base font-extrabold text-gray-900">₹ 95,000</h4>
+                  <h4 className="text-base font-extrabold text-gray-900 font-mono">
+                    ₹ {totalCommissionPaid.toLocaleString("en-IN")}
+                  </h4>
                 </div>
               </div>
             </div>
@@ -663,18 +694,24 @@ export default async function AssociateDashboard() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Pending Commission</p>
-                  <h4 className="text-base font-extrabold text-gray-900">₹ 25,000</h4>
+                  <h4 className="text-base font-extrabold text-gray-900 font-mono">
+                    ₹ {totalCommissionPending.toLocaleString("en-IN")}
+                  </h4>
                 </div>
               </div>
             </div>
 
-            {/* Bottom: Recent Withdrawal Pill */}
+            {/* Bottom: Wallet Status */}
             <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-              <span className="text-gray-500 font-medium">Recent Withdrawal:</span>
+              <span className="text-gray-500 font-medium">Available Balance:</span>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-900">₹ 50,000 on 01-04-2026</span>
-                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                  Success
+                <span className="font-bold text-gray-900 font-mono">
+                  ₹ {(user?.walletBalance || 0).toLocaleString("en-IN")}
+                </span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                  (user?.walletBalance || 0) > 0 ? "bg-emerald-100 text-emerald-800" : "bg-gray-100 text-gray-600"
+                }`}>
+                  {(user?.walletBalance || 0) > 0 ? "Active" : "Initial: ₹ 0"}
                 </span>
               </div>
             </div>
@@ -707,7 +744,7 @@ export default async function AssociateDashboard() {
                   <Users size={16} />
                 </div>
                 <p className="text-[10px] text-gray-500 font-semibold uppercase">Team Members</p>
-                <h4 className="text-base font-extrabold text-gray-900 mt-0.5">{displayTeamMembersCount}</h4>
+                <h4 className="text-base font-extrabold text-gray-900 mt-0.5 font-mono">{displayTeamMembersCount}</h4>
               </div>
 
               {/* 2. Team Business */}
@@ -716,18 +753,20 @@ export default async function AssociateDashboard() {
                   <TrendingUp size={16} />
                 </div>
                 <p className="text-[10px] text-gray-500 font-semibold uppercase">Team Business</p>
-                <h4 className="text-xs font-extrabold text-gray-900 mt-0.5 truncate max-w-full">
+                <h4 className="text-xs font-extrabold text-gray-900 mt-0.5 truncate max-w-full font-mono">
                   {displayTeamBusiness}
                 </h4>
               </div>
 
-              {/* 3. Team Rank */}
+              {/* 3. Team Status */}
               <div className="p-3 bg-gray-50 rounded-xl border border-gray-100 flex flex-col items-center">
                 <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mb-1.5">
                   <Trophy size={16} />
                 </div>
-                <p className="text-[10px] text-gray-500 font-semibold uppercase">Team Rank</p>
-                <h4 className="text-xs font-extrabold text-purple-900 mt-0.5">Platinum</h4>
+                <p className="text-[10px] text-gray-500 font-semibold uppercase">Team Status</p>
+                <h4 className="text-xs font-extrabold text-purple-900 mt-0.5">
+                  {displayTeamMembersCount > 0 ? "Active Network" : "Level 0"}
+                </h4>
               </div>
             </div>
           </div>
@@ -745,26 +784,36 @@ export default async function AssociateDashboard() {
               <svg viewBox="0 0 200 80" className="w-full h-24 overflow-visible">
                 {/* Guide line */}
                 <line x1="10" y1="70" x2="190" y2="70" stroke="#f1f5f9" strokeWidth="2" />
-                {/* Path */}
-                <path
-                  d="M 15 60 Q 60 50 80 40 T 140 25 T 185 10"
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                />
-                {/* Points */}
-                <circle cx="15" cy="60" r="3.5" fill="#3b82f6" />
-                <circle cx="80" cy="40" r="3.5" fill="#3b82f6" />
-                <circle cx="140" cy="25" r="3.5" fill="#3b82f6" />
-                <circle cx="185" cy="10" r="4.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" />
+                {actualPlotsSold > 0 ? (
+                  <>
+                    <path
+                      d="M 15 60 Q 60 50 80 40 T 140 25 T 185 10"
+                      fill="none"
+                      stroke="#3b82f6"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="15" cy="60" r="3.5" fill="#3b82f6" />
+                    <circle cx="80" cy="40" r="3.5" fill="#3b82f6" />
+                    <circle cx="140" cy="25" r="3.5" fill="#3b82f6" />
+                    <circle cx="185" cy="10" r="4.5" fill="#2563eb" stroke="#ffffff" strokeWidth="2" />
+                  </>
+                ) : (
+                  <>
+                    {/* Flat baseline for 0 sales */}
+                    <line x1="15" y1="70" x2="185" y2="70" stroke="#94a3b8" strokeWidth="2" strokeDasharray="4 4" />
+                    <circle cx="15" cy="70" r="3" fill="#94a3b8" />
+                    <circle cx="80" cy="70" r="3" fill="#94a3b8" />
+                    <circle cx="140" cy="70" r="3" fill="#94a3b8" />
+                    <circle cx="185" cy="70" r="3.5" fill="#94a3b8" />
+                  </>
+                )}
               </svg>
               {/* Month labels */}
               <div className="w-full flex justify-between text-[10px] font-semibold text-gray-400 px-2 mt-1">
-                <span>Jan</span>
-                <span>Feb</span>
-                <span>Mar</span>
-                <span>Apr</span>
+                {monthsData.slice(-4).map((m) => (
+                  <span key={m.month}>{m.month}</span>
+                ))}
               </div>
             </div>
 
@@ -772,15 +821,21 @@ export default async function AssociateDashboard() {
             <div className="w-full sm:w-1/2 space-y-2 text-xs">
               <div className="flex items-center justify-between p-1.5 px-2.5 rounded-lg bg-gray-50 border border-gray-100">
                 <span className="text-gray-600 font-medium">Sales Growth</span>
-                <span className="font-extrabold text-emerald-600">↑ 18%</span>
+                <span className={`font-extrabold ${actualPlotsSold > 0 ? "text-emerald-600" : "text-gray-500"}`}>
+                  {actualPlotsSold > 0 ? "↑ 18%" : "0%"}
+                </span>
               </div>
               <div className="flex items-center justify-between p-1.5 px-2.5 rounded-lg bg-gray-50 border border-gray-100">
                 <span className="text-gray-600 font-medium">Commission Growth</span>
-                <span className="font-extrabold text-emerald-600">↑ 22%</span>
+                <span className={`font-extrabold ${totalCommissionEarned > 0 ? "text-emerald-600" : "text-gray-500"}`}>
+                  {totalCommissionEarned > 0 ? "↑ 22%" : "0%"}
+                </span>
               </div>
               <div className="flex items-center justify-between p-1.5 px-2.5 rounded-lg bg-gray-50 border border-gray-100">
                 <span className="text-gray-600 font-medium">Team Growth</span>
-                <span className="font-extrabold text-emerald-600">↑ 25%</span>
+                <span className={`font-extrabold ${displayDownline > 0 ? "text-emerald-600" : "text-gray-500"}`}>
+                  {displayDownline > 0 ? "↑ 25%" : "0%"}
+                </span>
               </div>
             </div>
           </div>
