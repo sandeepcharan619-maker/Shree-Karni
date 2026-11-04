@@ -21,6 +21,7 @@ async function main() {
       dir,
       remote: 'origin',
       ref: 'main',
+      force: true,
       onAuth: () => ({
         username: token,
         password: '',

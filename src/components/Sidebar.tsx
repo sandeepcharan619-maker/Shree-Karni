@@ -2,35 +2,27 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
+  Home,
+  Briefcase,
+  CreditCard,
+  Users,
+  Trophy,
+  BarChart3,
+  Settings,
   Gauge,
   UserPlus,
-  User,
-  Users,
   Repeat,
   Banknote,
   LogOut,
+  Compass,
+  Trees,
   ChevronRight,
   ChevronDown,
-  Trees,
-  Car,
-  Compass,
 } from "lucide-react";
-
-interface SubMenuItem {
-  label: string;
-  href: string;
-  icon?: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
-}
-
-interface MenuItem {
-  label: string;
-  icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
-  href: string;
-  submenu?: SubMenuItem[];
-}
 
 interface SidebarProps {
   userRole?: string;
@@ -41,7 +33,6 @@ interface SidebarProps {
 export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [customAvatar, setCustomAvatar] = useState<string | null>(null);
   const [customName, setCustomName] = useState<string | null>(null);
   const [customMemberId, setCustomMemberId] = useState<string | null>(null);
@@ -71,174 +62,131 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
 
   const isAdmin = userRole === "ADMIN" || session?.user?.role === "ADMIN";
 
-  const toggleMenu = (menu: string) => {
-    setExpandedMenus((prev) =>
-      prev.includes(menu) ? prev.filter((m) => m !== menu) : [...prev, menu]
-    );
-  };
-
-  const associateMenuItems: MenuItem[] = [
-    { label: "DashBoard", icon: Gauge, href: "/dashboard" },
-    { label: "Register New Associate", icon: UserPlus, href: "/dashboard/register" },
-    { label: "Profile", icon: User, href: "/dashboard/profile" },
-    {
-      label: "My Team",
-      icon: Users,
-      href: "#",
-      submenu: [
-        { label: "Tree View", href: "/dashboard/team/tree", icon: Trees },
-      ],
-    },
-    { label: "Plot Manager", icon: Repeat, href: "/dashboard/plots" },
-    {
-      label: "My Incentive",
-      icon: Banknote,
-      href: "#",
-      submenu: [
-        { label: "All Incentives", href: "/dashboard/incentives" },
-        { label: "Wallet", href: "/dashboard/incentives/wallet" },
-      ],
-    },
-    { label: "Visitor Management", icon: Repeat, href: "/dashboard/visitors" },
-    { label: "Lead Manager", icon: Repeat, href: "/dashboard/leads" },
-    { label: "Change Password", icon: Repeat, href: "/dashboard/change-password" },
+  // Associate Menu Items exactly matching the screenshot
+  const associateMenu = [
+    { label: "Dashboard", icon: Home, href: "/dashboard" },
+    { label: "My Business", icon: Briefcase, href: "/dashboard/plots" },
+    { label: "My Wallet", icon: CreditCard, href: "/dashboard/incentives/wallet" },
+    { label: "My Team", icon: Users, href: "/dashboard/team/tree" },
+    { label: "Rank & Rewards", icon: Trophy, href: "/dashboard#rank-rewards" },
+    { label: "Reports", icon: BarChart3, href: "/dashboard#reports" },
+    { label: "Profile & Settings", icon: Settings, href: "/dashboard/profile" },
   ];
 
-  const adminMenuItems: MenuItem[] = [
+  // Admin Menu Items
+  const adminMenu = [
     { label: "CRM DashBoard", icon: Gauge, href: "/admin" },
     { label: "Leads & Enquiries", icon: Users, href: "/admin?tab=leads" },
     { label: "Property Matcher", icon: Compass, href: "/admin?tab=matching" },
     { label: "All Associates", icon: Users, href: "/admin/associates" },
-    { label: "Register New Associate", icon: UserPlus, href: "/admin/associates/create" },
+    { label: "Register Associate", icon: UserPlus, href: "/admin/associates/create" },
     { label: "Plot Manager", icon: Repeat, href: "/admin/plots" },
     { label: "Sales Overview", icon: Banknote, href: "/admin/sales" },
-    { label: "Incentive Management", icon: Banknote, href: "/admin/incentives" },
-    { label: "Change Password", icon: Repeat, href: "/admin/change-password" },
+    { label: "Incentives", icon: Banknote, href: "/admin/incentives" },
+    { label: "Change Password", icon: Settings, href: "/admin/change-password" },
   ];
-
-  const menuItems: MenuItem[] = isAdmin ? adminMenuItems : associateMenuItems;
 
   return (
     <>
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/40 z-30 top-[52px]"
+          className="lg:hidden fixed inset-0 bg-black/50 z-30 top-[60px]"
           onClick={onClose}
         />
       )}
 
       <aside
-        className={`fixed top-[52px] left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-30 transition-transform duration-200 ease-in-out overflow-y-auto select-none ${
+        className={`fixed top-[60px] left-0 bottom-0 w-64 bg-[#0d1b2a] text-white z-30 transition-transform duration-200 ease-in-out flex flex-col justify-between overflow-y-auto select-none shadow-xl ${
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        {/* User Card */}
-        <div className="p-4 flex items-center gap-3 border-b border-gray-100">
-          <div className="w-11 h-11 rounded-full overflow-hidden bg-slate-200 border border-slate-300 flex items-center justify-center shrink-0">
-            {customAvatar ? (
-              <img src={customAvatar} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <User size={28} className="text-slate-500" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-bold text-gray-800 leading-snug truncate">
-              {customName || session?.user?.name || "Pushpendra singh charan"}
-            </h4>
-            <p className="text-xs text-gray-500 truncate">
-              {customMemberId || session?.user?.memberId || "SKR00001"}
-            </p>
-          </div>
-        </div>
-
-        {/* Section Header */}
-        <div className="px-4 py-2 bg-[#a4d0db]">
-          <span className="text-[11px] font-bold text-slate-700 tracking-wider uppercase">
-            MY ACCOUNT
-          </span>
-        </div>
-
-        {/* Navigation list */}
-        <nav className="py-1">
-          {menuItems.map((item) => {
-            const isActive = pathname === item.href;
-            const hasSubmenu = Boolean(item.submenu && item.submenu.length > 0);
-            const isExpanded = expandedMenus.includes(item.label);
-
-            return (
-              <div key={item.label} className="border-b border-gray-50 last:border-b-0">
-                {hasSubmenu ? (
-                  <button
-                    onClick={() => toggleMenu(item.label)}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors ${
-                      isActive ? "bg-gray-100 text-blue-600 font-semibold" : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <item.icon size={16} className="text-gray-600 shrink-0" />
-                      <span>{item.label}</span>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronDown size={14} className="text-gray-400" />
-                    ) : (
-                      <ChevronRight size={14} className="text-gray-400" />
-                    )}
-                  </button>
-                ) : (
-                  <Link
-                    href={item.href}
-                    onClick={onClose}
-                    className={`flex items-center gap-3 px-4 py-2.5 text-xs font-medium transition-colors ${
-                      isActive
-                        ? "bg-gray-100 text-blue-600 font-semibold border-l-4 border-blue-600"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <item.icon size={16} className="text-gray-600 shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                )}
-
-                {/* Submenu */}
-                {hasSubmenu && isExpanded && item.submenu && (
-                  <div className="bg-slate-50 py-1 pl-10 pr-3 space-y-1">
-                    {item.submenu.map((sub) => (
-                      <Link
-                        key={sub.href}
-                        href={sub.href}
-                        onClick={onClose}
-                        className={`flex items-center gap-2 py-1.5 px-2 text-xs rounded transition-colors ${
-                          pathname === sub.href
-                            ? "text-blue-600 font-semibold bg-white shadow-xs"
-                            : "text-gray-600 hover:text-gray-900"
-                        }`}
-                      >
-                        {sub.icon && <sub.icon size={13} className="text-gray-500 shrink-0" />}
-                        <span>{sub.label}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
+        <div>
+          {/* Top Logo Section */}
+          <div className="p-5 border-b border-white/10 text-center">
+            <Link href="/" className="inline-block group">
+              <div className="flex flex-col items-center">
+                {/* Gold architectural icon or logo */}
+                <div className="w-12 h-12 mb-2 flex items-center justify-center">
+                  <Image
+                    src="/logo.png"
+                    alt="Shree Karni Real Estate"
+                    width={160}
+                    height={40}
+                    className="h-10 w-auto object-contain brightness-125"
+                    priority
+                  />
+                </div>
+                <h2 className="text-base font-bold text-[#e9b04c] tracking-tight font-serif leading-tight">
+                  Shree Karni
+                </h2>
+                <p className="text-xs font-semibold text-white tracking-widest uppercase">
+                  Real Estate
+                </p>
+                <p className="text-[10px] text-amber-200/80 tracking-wider mt-0.5 font-medium">
+                  Dream • Invest • Grow
+                </p>
               </div>
-            );
-          })}
+            </Link>
+          </div>
 
-          {/* Logout */}
-          <button
-            onClick={() => {
-              const target =
-                typeof window !== "undefined" && window.location.hostname === "localhost"
-                  ? "/"
-                  : "https://www.shreekarnirealestate.in";
-              signOut({ callbackUrl: target });
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
-          >
-            <LogOut size={16} className="text-gray-600 shrink-0" />
-            <span>Logout</span>
-          </button>
-        </nav>
+          {/* Navigation Links */}
+          <nav className="p-3 space-y-1.5">
+            {(isAdmin ? adminMenu : associateMenu).map((item) => {
+              const isActive =
+                item.href === "/dashboard"
+                  ? pathname === "/dashboard"
+                  : item.href.startsWith("/dashboard/")
+                  ? pathname.startsWith(item.href)
+                  : pathname === item.href;
+
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => {
+                    if (onClose) onClose();
+                  }}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all ${
+                    isActive
+                      ? "bg-[#e9b04c] text-[#0d1b2a] shadow-sm font-bold"
+                      : "text-slate-300 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <item.icon
+                    size={17}
+                    strokeWidth={isActive ? 2.5 : 2}
+                    className={isActive ? "text-[#0d1b2a]" : "text-slate-400"}
+                  />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Bottom Decorative Township Banner: "Together We Grow Bigger..." */}
+        <div className="p-3 mt-auto">
+          <div className="relative rounded-xl overflow-hidden border border-amber-500/30 shadow-lg group">
+            <div className="h-28 w-full relative">
+              <Image
+                src="/website-bg.png"
+                alt="Shree Karni Township"
+                fill
+                className="object-cover object-center group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a1628] via-[#0a1628]/70 to-transparent" />
+              <div className="absolute inset-0 flex items-end justify-center p-3 text-center">
+                <p className="font-serif italic text-amber-300 text-sm tracking-wide drop-shadow-md">
+                  Together<br />
+                  <span className="text-white text-xs font-sans not-italic font-semibold tracking-wider">
+                    We Grow Bigger...
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </aside>
     </>
   );
