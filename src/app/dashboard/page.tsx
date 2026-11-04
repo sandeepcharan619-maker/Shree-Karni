@@ -342,7 +342,7 @@ export default async function AssociateDashboard() {
           {/* 4 Colored KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             {/* 1. Plots Sold (Dark Blue gradient) */}
-            <div className="rounded-xl p-4 text-white shadow-sm flex flex-col justify-between min-h-[110px] bg-gradient-to-br from-[#132f54] via-[#103058] to-[#0c2444] hover:shadow-md transition">
+            <div className="rounded-xl p-4 text-white shadow-sm flex flex-col justify-between min-h-[100px] bg-gradient-to-br from-[#132f54] via-[#103058] to-[#0c2444] hover:shadow-md transition">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider">
                   Plots Sold
@@ -354,13 +354,10 @@ export default async function AssociateDashboard() {
                   {displayPlotsSold}
                 </h4>
               </div>
-              <span className="text-[10px] text-slate-300 font-medium">
-                {actualPlotsSold > 0 ? "Approved Sales" : "0 Sold Initially"}
-              </span>
             </div>
 
             {/* 2. Total Business (Vibrant Green gradient) */}
-            <div className="rounded-xl p-4 text-white shadow-sm flex flex-col justify-between min-h-[110px] bg-gradient-to-br from-[#059669] via-[#047857] to-[#065f46] hover:shadow-md transition">
+            <div className="rounded-xl p-4 text-white shadow-sm flex flex-col justify-between min-h-[100px] bg-gradient-to-br from-[#059669] via-[#047857] to-[#065f46] hover:shadow-md transition">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-emerald-100 uppercase tracking-wider">
                   Total Business
@@ -374,13 +371,10 @@ export default async function AssociateDashboard() {
                   {displayTotalBusiness}
                 </h4>
               </div>
-              <span className="text-[10px] text-emerald-200 font-medium">
-                {actualSalesAmount > 0 ? "Direct Turnover" : "Initial Baseline: ₹ 0"}
-              </span>
             </div>
 
             {/* 3. Commission Earned (Purple/Magenta gradient) */}
-            <div className="rounded-xl p-4 text-white shadow-sm flex flex-col justify-between min-h-[110px] bg-gradient-to-br from-[#7e22ce] via-[#6b21a8] to-[#581c87] hover:shadow-md transition">
+            <div className="rounded-xl p-4 text-white shadow-sm flex flex-col justify-between min-h-[100px] bg-gradient-to-br from-[#7e22ce] via-[#6b21a8] to-[#581c87] hover:shadow-md transition">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-purple-100 uppercase tracking-wider">
                   Commission Earned
@@ -392,9 +386,6 @@ export default async function AssociateDashboard() {
                   {displayCommission}
                 </h4>
               </div>
-              <span className="text-[10px] text-purple-200 font-medium">
-                {totalCommissionEarned > 0 ? "Credited to Wallet" : "Initial Baseline: ₹ 0"}
-              </span>
             </div>
 
             {/* 4. Wallet Balance (Orange gradient) */}

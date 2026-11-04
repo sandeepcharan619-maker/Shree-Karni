@@ -323,20 +323,14 @@ export default function MyTeamDashboardView({
       {/* ============================================================== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. My Team Members (Dark Blue Gradient) */}
-        <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[110px] bg-gradient-to-br from-[#123058] via-[#103058] to-[#0c2342] hover:shadow-md transition">
+        <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[100px] bg-gradient-to-br from-[#123058] via-[#103058] to-[#0c2342] hover:shadow-md transition">
           <div>
             <p className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-1">
-              Total Team Members
+              My Team Members
             </p>
-            <h3 className="text-3xl font-black tracking-tight text-white flex items-baseline gap-2">
-              <span>{totalTeamMembersCount}</span>
-              {totalTeamMembersCount > 0 && (
-                <span className="text-xs font-bold text-emerald-400">↑ Active</span>
-              )}
+            <h3 className="text-3xl font-black tracking-tight text-white">
+              {totalTeamMembersCount}
             </h3>
-            <p className="text-[11px] text-slate-300 mt-1 font-medium">
-              {totalTeamMembersCount > 0 ? "Direct & downline members" : "No members registered yet"}
-            </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
             <Users size={24} />
@@ -344,7 +338,7 @@ export default function MyTeamDashboardView({
         </div>
 
         {/* 2. Team Business (Vibrant Green Gradient) */}
-        <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[110px] bg-gradient-to-br from-[#059669] via-[#047857] to-[#065f46] hover:shadow-md transition">
+        <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[100px] bg-gradient-to-br from-[#059669] via-[#047857] to-[#065f46] hover:shadow-md transition">
           <div>
             <p className="text-xs font-semibold text-emerald-100 uppercase tracking-wider mb-1">
               Team Business
@@ -352,9 +346,6 @@ export default function MyTeamDashboardView({
             <h3 className="text-2xl font-black tracking-tight text-white">
               ₹ {totalTeamBusinessSum.toLocaleString("en-IN")}
             </h3>
-            <p className="text-[11px] text-emerald-200 mt-1 font-medium">
-              {totalTeamBusinessSum > 0 ? "Downline plot sales volume" : "Initial: ₹ 0"}
-            </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
             <TrendingUp size={24} />
@@ -362,7 +353,7 @@ export default function MyTeamDashboardView({
         </div>
 
         {/* 3. Team Rank (Purple Gradient) */}
-        <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[110px] bg-gradient-to-br from-[#7e22ce] via-[#6b21a8] to-[#581c87] hover:shadow-md transition">
+        <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[100px] bg-gradient-to-br from-[#7e22ce] via-[#6b21a8] to-[#581c87] hover:shadow-md transition">
           <div>
             <p className="text-xs font-semibold text-purple-100 uppercase tracking-wider mb-1">
               Team Rank
@@ -370,9 +361,6 @@ export default function MyTeamDashboardView({
             <h3 className="text-2xl font-black tracking-tight text-white flex items-center gap-1.5">
               <span>{teamRankDisplay}</span>
             </h3>
-            <p className="text-[11px] text-purple-200 mt-1 font-medium">
-              {totalTeamBusinessSum > 0 ? "Active Downline Tier" : "Initial Rank Level"}
-            </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-amber-300 shrink-0">
             <Trophy size={24} />
@@ -380,7 +368,7 @@ export default function MyTeamDashboardView({
         </div>
 
         {/* 4. Team Commission (Orange Gradient) */}
-        <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[110px] bg-gradient-to-br from-[#ea580c] via-[#c2410c] to-[#9a3412] hover:shadow-md transition">
+        <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[100px] bg-gradient-to-br from-[#ea580c] via-[#c2410c] to-[#9a3412] hover:shadow-md transition">
           <div>
             <p className="text-xs font-semibold text-orange-100 uppercase tracking-wider mb-1">
               Team Commission
@@ -388,9 +376,6 @@ export default function MyTeamDashboardView({
             <h3 className="text-2xl font-black tracking-tight text-white">
               ₹ {totalTeamCommissionSum.toLocaleString("en-IN")}
             </h3>
-            <p className="text-[11px] text-orange-200 mt-1 font-medium">
-              {totalTeamCommissionSum > 0 ? "Team override commission" : "Initial: ₹ 0"}
-            </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
             <Handshake size={24} />
