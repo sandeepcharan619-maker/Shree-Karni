@@ -20,6 +20,20 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({ where: { id: session.user.id }, data: { password: hashedPassword } });
 
+    try {
+      await prisma.activityLog.create({
+        data: {
+          action: "PASSWORD_CHANGED",
+          entity: "User",
+          entityId: session.user.id,
+          performedBy: user.name || "Associate",
+          details: `Associate (${user.memberId}) changed their account password.`,
+        },
+      });
+    } catch (e) {
+      // ignore
+    }
+
     return NextResponse.json({ message: "Password updated successfully" });
   } catch (error) {
     console.error("Change password error:", error);

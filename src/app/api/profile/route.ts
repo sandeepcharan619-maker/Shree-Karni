@@ -56,7 +56,7 @@ export async function GET() {
   }
 }
 
-export async function PUT(req: NextRequest) {
+export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
@@ -74,6 +74,9 @@ export async function PUT(req: NextRequest) {
       email,
       gender,
       avatarUrl,
+      fatherName,
+      dob,
+      whatsappNumber,
       address,
       state,
       district,
@@ -86,7 +89,17 @@ export async function PUT(req: NextRequest) {
       accountNumber,
       ifscCode,
       accountHolder,
+      bankBranch,
       upiId,
+      bankStatus,
+      aadhaarDocUrl,
+      panDocUrl,
+      photoDocUrl,
+      addressDocUrl,
+      bankDocUrl,
+      kycStatus,
+      twoFactorEnabled,
+      notificationPrefs,
       nomineeName,
       nomineeRelation,
       nomineePhone,
@@ -120,6 +133,9 @@ export async function PUT(req: NextRequest) {
         phone: phone !== undefined ? phone?.trim() || null : undefined,
         email: email !== undefined ? email?.trim() || null : undefined,
         avatarUrl: avatarUrl !== undefined ? avatarUrl || null : undefined,
+        fatherName: fatherName !== undefined ? fatherName?.trim() || null : undefined,
+        dob: dob !== undefined ? dob?.trim() || null : undefined,
+        whatsappNumber: whatsappNumber !== undefined ? whatsappNumber?.trim() || null : undefined,
         address: address !== undefined ? address?.trim() || null : undefined,
         state: state !== undefined ? state?.trim() || null : undefined,
         district: district !== undefined ? district?.trim() || null : undefined,
@@ -129,20 +145,40 @@ export async function PUT(req: NextRequest) {
         villagePost: villagePost !== undefined ? villagePost?.trim() || null : undefined,
         spouseName: spouseName !== undefined ? spouseName?.trim() || null : undefined,
         bankName: bankName !== undefined ? bankName?.trim() || null : undefined,
-        accountNumber:
-          accountNumber !== undefined ? accountNumber?.trim() || null : undefined,
+        accountNumber: accountNumber !== undefined ? accountNumber?.trim() || null : undefined,
         ifscCode: ifscCode !== undefined ? ifscCode?.trim()?.toUpperCase() || null : undefined,
-        accountHolder:
-          accountHolder !== undefined ? accountHolder?.trim() || null : undefined,
+        accountHolder: accountHolder !== undefined ? accountHolder?.trim() || null : undefined,
+        bankBranch: bankBranch !== undefined ? bankBranch?.trim() || null : undefined,
         upiId: upiId !== undefined ? upiId?.trim() || null : undefined,
-        nomineeName:
-          nomineeName !== undefined ? nomineeName?.trim() || null : undefined,
-        nomineeRelation:
-          nomineeRelation !== undefined ? nomineeRelation?.trim() || null : undefined,
-        nomineePhone:
-          nomineePhone !== undefined ? nomineePhone?.trim() || null : undefined,
+        bankStatus: bankStatus !== undefined ? bankStatus : undefined,
+        aadhaarDocUrl: aadhaarDocUrl !== undefined ? aadhaarDocUrl : undefined,
+        panDocUrl: panDocUrl !== undefined ? panDocUrl : undefined,
+        photoDocUrl: photoDocUrl !== undefined ? photoDocUrl : undefined,
+        addressDocUrl: addressDocUrl !== undefined ? addressDocUrl : undefined,
+        bankDocUrl: bankDocUrl !== undefined ? bankDocUrl : undefined,
+        kycStatus: kycStatus !== undefined ? kycStatus : undefined,
+        twoFactorEnabled: typeof twoFactorEnabled === "boolean" ? twoFactorEnabled : undefined,
+        notificationPrefs: notificationPrefs !== undefined ? (typeof notificationPrefs === "string" ? notificationPrefs : JSON.stringify(notificationPrefs)) : undefined,
+        nomineeName: nomineeName !== undefined ? nomineeName?.trim() || null : undefined,
+        nomineeRelation: nomineeRelation !== undefined ? nomineeRelation?.trim() || null : undefined,
+        nomineePhone: nomineePhone !== undefined ? nomineePhone?.trim() || null : undefined,
       },
     });
+
+    // Create an activity log record
+    try {
+      await prisma.activityLog.create({
+        data: {
+          action: "PROFILE_UPDATED",
+          entity: "User",
+          entityId: existingUser.id,
+          performedBy: existingUser.name || "Associate",
+          details: `Associate (${existingUser.memberId}) updated their profile and account settings.`,
+        },
+      });
+    } catch (e) {
+      console.warn("Could not write activity log:", e);
+    }
 
     const { password, ...safeUser } = updated;
     return NextResponse.json({

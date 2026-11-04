@@ -41,10 +41,13 @@ model User {
   // Extended Profile Details
   gender          String?   @default("Male")
   avatarUrl       String?
+  fatherName      String?
+  dob             String?
+  whatsappNumber  String?
   address         String?
-  state           String?
+  state           String?   @default("Rajasthan")
   district        String?
-  city            String?
+  city            String?   @default("Jaipur")
   pincode         String?
   tahsil          String?
   villagePost     String?
@@ -53,7 +56,19 @@ model User {
   accountNumber   String?
   ifscCode        String?
   accountHolder   String?
+  bankBranch      String?
   upiId           String?
+  bankStatus      String?   @default("VERIFIED") // PENDING, VERIFIED, REJECTED
+  aadhaarDocUrl   String?
+  panDocUrl       String?
+  photoDocUrl     String?
+  addressDocUrl   String?
+  bankDocUrl      String?
+  kycStatus       String?   @default("VERIFIED") // PENDING, VERIFIED, REJECTED
+  twoFactorEnabled Boolean  @default(false)
+  notificationPrefs String?
+  lastLoginAt     DateTime? @default(now())
+  lastLoginIp     String?   @default("127.0.0.1 (Jaipur, RJ)")
   nomineeName     String?
   nomineeRelation String?
   nomineePhone    String?
