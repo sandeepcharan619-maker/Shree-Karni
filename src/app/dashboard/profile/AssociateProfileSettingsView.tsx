@@ -38,6 +38,7 @@ import {
   Smartphone,
   ShieldCheck,
   AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import AssociatePhotoUploader from "@/components/AssociatePhotoUploader";
 
@@ -75,7 +76,13 @@ export interface AssociateProfileData {
   photoDocUrl?: string | null;
   addressDocUrl?: string | null;
   bankDocUrl?: string | null;
+  aadhaarStatus?: string | null;
+  panStatus?: string | null;
+  photoStatus?: string | null;
+  addressStatus?: string | null;
+  bankDocStatus?: string | null;
   kycStatus?: string | null;
+  kycRejectReason?: string | null;
   twoFactorEnabled?: boolean;
   notificationPrefs?: string | null;
   lastLoginAt?: string | Date | null;
@@ -194,11 +201,19 @@ export default function AssociateProfileSettingsView({
 
   // Document & KYC State
   const [docUrls, setDocUrls] = useState({
-    aadhaarDocUrl: initialUser.aadhaarDocUrl || "/placeholder-doc.pdf",
-    panDocUrl: initialUser.panDocUrl || "/placeholder-doc.pdf",
+    aadhaarDocUrl: initialUser.aadhaarDocUrl || "",
+    panDocUrl: initialUser.panDocUrl || "",
     photoDocUrl: initialUser.photoDocUrl || initialUser.avatarUrl || "",
-    addressDocUrl: initialUser.addressDocUrl || "/placeholder-doc.pdf",
-    bankDocUrl: initialUser.bankDocUrl || "/placeholder-doc.pdf",
+    addressDocUrl: initialUser.addressDocUrl || "",
+    bankDocUrl: initialUser.bankDocUrl || "",
+  });
+
+  const [docStatuses, setDocStatuses] = useState({
+    aadhaarStatus: initialUser.aadhaarStatus || "PENDING",
+    panStatus: initialUser.panStatus || "PENDING",
+    photoStatus: initialUser.photoStatus || "PENDING",
+    addressStatus: initialUser.addressStatus || "PENDING",
+    bankDocStatus: initialUser.bankDocStatus || "PENDING",
   });
   const [previewDoc, setPreviewDoc] = useState<{ title: string; url: string } | null>(null);
 
@@ -329,22 +344,72 @@ export default function AssociateProfileSettingsView({
     }
   };
 
-  // Handle Document Upload (Simulated high-res capture to DataURL / state)
+  // Handle Document Upload (Real high-res document capture & persistence)
   const handleDocUpload = (
     docKey: "aadhaarDocUrl" | "panDocUrl" | "photoDocUrl" | "addressDocUrl" | "bankDocUrl",
-    fileName: string
+    file: File
   ) => {
-    const mockUrl = `/uploads/${docKey}_${Date.now()}.png`;
-    setDocUrls((prev) => ({ ...prev, [docKey]: mockUrl }));
+    if (!file) return;
 
-    // Persist to profile API
-    fetch("/api/profile", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [docKey]: mockUrl, kycStatus: "VERIFIED" }),
-    }).catch(console.warn);
+    if (file.size > 8 * 1024 * 1024) {
+      showToast("File size too large. Please select a file under 8MB.", "error");
+      return;
+    }
 
-    showToast(`${fileName} uploaded successfully!`);
+    setLoading(true);
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const fileDataUrl = (e.target?.result as string) || "";
+
+        const statusKeyMap: Record<string, string> = {
+          aadhaarDocUrl: "aadhaarStatus",
+          panDocUrl: "panStatus",
+          photoDocUrl: "photoStatus",
+          addressDocUrl: "addressStatus",
+          bankDocUrl: "bankDocStatus",
+        };
+
+        const statusField = statusKeyMap[docKey];
+
+        const res = await fetch("/api/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            [docKey]: fileDataUrl,
+            [statusField]: "PENDING",
+            kycStatus: "PENDING",
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to upload document");
+        }
+
+        setDocUrls((prev) => ({ ...prev, [docKey]: fileDataUrl }));
+        setDocStatuses((prev) => ({ ...prev, [statusField]: "PENDING" }));
+        setUser((prev) => ({
+          ...prev,
+          [docKey]: fileDataUrl,
+          [statusField]: "PENDING",
+          kycStatus: "PENDING",
+        }));
+
+        showToast(`${file.name} uploaded successfully! Status: Pending Admin Verification.`);
+      } catch (err: any) {
+        showToast(err.message || "Failed to upload document", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    reader.onerror = () => {
+      showToast("Error reading file", "error");
+      setLoading(false);
+    };
+
+    reader.readAsDataURL(file);
   };
 
   // Change Password
@@ -560,6 +625,24 @@ export default function AssociateProfileSettingsView({
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                     <span>Active Associate</span>
                   </span>
+
+                  {/* KYC Verification Status */}
+                  {user.kycStatus === "APPROVED" || user.kycStatus === "VERIFIED" ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                      <CheckCircle2 size={12} />
+                      <span>KYC Approved</span>
+                    </span>
+                  ) : user.kycStatus === "REJECTED" ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-500/15 border border-red-500/30 text-red-300">
+                      <XCircle size={12} />
+                      <span>KYC Rejected</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                      <Clock size={12} />
+                      <span>KYC Pending</span>
+                    </span>
+                  )}
                 </div>
 
                 {/* Associate ID with Copy Button */}
@@ -1507,7 +1590,7 @@ export default function AssociateProfileSettingsView({
           {activeTab === "kyc" && (
             <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-6 md:p-8 animate-in fade-in space-y-6">
               <div className="pb-5 border-b border-gray-100">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                       <FileText className="text-amber-500" size={22} />
@@ -1518,111 +1601,188 @@ export default function AssociateProfileSettingsView({
                     </p>
                   </div>
 
-                  <span className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 border border-emerald-300 text-emerald-800">
-                    <CheckCircle2 size={14} className="text-emerald-600" />
-                    <span>KYC VERIFIED</span>
-                  </span>
+                  {user.kycStatus === "APPROVED" || user.kycStatus === "VERIFIED" ? (
+                    <span className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 border border-emerald-300 text-emerald-800 shadow-2xs">
+                      <CheckCircle2 size={15} className="text-emerald-600" />
+                      <span>KYC APPROVED</span>
+                    </span>
+                  ) : user.kycStatus === "REJECTED" ? (
+                    <span className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-red-50 border border-red-300 text-red-800 shadow-2xs">
+                      <XCircle size={15} className="text-red-600" />
+                      <span>KYC REJECTED</span>
+                    </span>
+                  ) : (
+                    <span className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 border border-amber-300 text-amber-800 shadow-2xs">
+                      <Clock size={15} className="text-amber-600" />
+                      <span>KYC PENDING</span>
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {/* Informational Guidance Notice */}
+              {user.kycStatus !== "APPROVED" && user.kycStatus !== "VERIFIED" && (
+                <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-950 text-xs flex items-start gap-3">
+                  <Clock size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-amber-900">
+                      KYC Verification in Progress
+                    </p>
+                    <p className="text-amber-800 leading-relaxed">
+                      All new associates start with documents in <strong>Pending</strong> status. Please upload all 5 required government documents below. Our Admin team will review and approve them directly from the Admin Dashboard, after which your KYC status will automatically update to <span className="font-bold text-emerald-800">Approved</span>.
+                    </p>
+                    {user.kycRejectReason && (
+                      <div className="mt-2 p-2.5 bg-red-100/80 border border-red-200 rounded-lg text-red-900 font-semibold">
+                        Admin Note: {user.kycRejectReason}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Documents Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   {
-                    key: "aadhaarDocUrl",
+                    key: "aadhaarDocUrl" as const,
+                    statusKey: "aadhaarStatus" as const,
                     name: "Aadhaar Card (Front & Back)",
-                    desc: "12-digit UIDAI proof with clear address.",
-                    status: "Approved",
-                    fileName: "aadhaar_card_scanned.pdf",
+                    desc: "12-digit UIDAI proof with clear residential address.",
                     url: docUrls.aadhaarDocUrl,
+                    status: docStatuses.aadhaarStatus,
                   },
                   {
-                    key: "panDocUrl",
+                    key: "panDocUrl" as const,
+                    statusKey: "panStatus" as const,
                     name: "PAN Card",
-                    desc: "Mandatory for TDS tax deduction & commissions.",
-                    status: "Approved",
-                    fileName: "pan_card_official.jpg",
+                    desc: "Mandatory for TDS tax deduction & plot commission payouts.",
                     url: docUrls.panDocUrl,
+                    status: docStatuses.panStatus,
                   },
                   {
-                    key: "photoDocUrl",
+                    key: "photoDocUrl" as const,
+                    statusKey: "photoStatus" as const,
                     name: "Passport Size Photograph",
-                    desc: "White background passport photo for corporate ID card.",
-                    status: "Approved",
-                    fileName: "profile_passport_photo.png",
+                    desc: "Clean white background passport photo for corporate ID card.",
                     url: docUrls.photoDocUrl || user.avatarUrl,
+                    status: docStatuses.photoStatus,
                   },
                   {
-                    key: "addressDocUrl",
+                    key: "addressDocUrl" as const,
+                    statusKey: "addressStatus" as const,
                     name: "Address Proof",
-                    desc: "Voter ID, Electricity bill or Domicile certificate.",
-                    status: "Approved",
-                    fileName: "jaipur_address_proof.pdf",
+                    desc: "Voter ID, Electricity bill or Rajasthan Domicile certificate.",
                     url: docUrls.addressDocUrl,
+                    status: docStatuses.addressStatus,
                   },
                   {
-                    key: "bankDocUrl",
+                    key: "bankDocUrl" as const,
+                    statusKey: "bankDocStatus" as const,
                     name: "Bank Proof (Cancelled Cheque / Passbook)",
-                    desc: "Showing printed Account No. & IFSC Code.",
-                    status: "Approved",
-                    fileName: "cancelled_cheque_sbi.jpg",
+                    desc: "Showing printed Account No. & IFSC Code matching bank details.",
                     url: docUrls.bankDocUrl,
+                    status: docStatuses.bankDocStatus,
                   },
-                ].map((doc) => (
-                  <div
-                    key={doc.key}
-                    className="p-5 rounded-2xl border border-gray-200 hover:border-amber-400/60 transition bg-slate-50/50 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-gray-900">
-                          {doc.name}
-                        </span>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                          <CheckCircle2 size={11} />
-                          <span>{doc.status}</span>
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mb-3">{doc.desc}</p>
-                      <div className="flex items-center gap-2 p-2 rounded-lg bg-white border border-gray-200 text-xs text-gray-700 font-mono">
-                        <FileText size={14} className="text-amber-500 shrink-0" />
-                        <span className="truncate flex-1">{doc.fileName}</span>
-                      </div>
-                    </div>
+                ].map((doc) => {
+                  const isApproved = doc.status === "APPROVED";
+                  const isRejected = doc.status === "REJECTED";
+                  const hasUrl = Boolean(doc.url);
 
-                    <div className="flex items-center gap-2 pt-4 mt-3 border-t border-gray-200/60">
-                      <button
-                        onClick={() =>
-                          setPreviewDoc({
-                            title: doc.name,
-                            url: doc.url || "/placeholder-doc.pdf",
-                          })
-                        }
-                        className="flex-1 py-1.5 px-3 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center justify-center gap-1.5 transition cursor-pointer"
-                      >
-                        <Eye size={13} />
-                        <span>View</span>
-                      </button>
+                  return (
+                    <div
+                      key={doc.key}
+                      className="p-5 rounded-2xl border border-gray-200 hover:border-amber-400/60 transition bg-slate-50/50 flex flex-col justify-between space-y-3"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-gray-900">
+                            {doc.name}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              isApproved
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                : isRejected
+                                ? "bg-red-100 text-red-800 border border-red-200"
+                                : hasUrl
+                                ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                : "bg-gray-100 text-gray-700 border border-gray-200"
+                            }`}
+                          >
+                            {isApproved ? (
+                              <CheckCircle2 size={11} className="text-emerald-600" />
+                            ) : isRejected ? (
+                              <XCircle size={11} className="text-red-600" />
+                            ) : (
+                              <Clock size={11} className="text-amber-600" />
+                            )}
+                            <span>
+                              {isApproved
+                                ? "Approved"
+                                : isRejected
+                                ? "Rejected"
+                                : hasUrl
+                                ? "Pending Approval"
+                                : "Pending Upload"}
+                            </span>
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-3">{doc.desc}</p>
 
-                      <label className="flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer">
-                        <Upload size={13} />
-                        <span>Re-upload</span>
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files?.[0]) {
-                              handleDocUpload(
-                                doc.key as any,
-                                e.target.files[0].name
-                              );
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-white border border-gray-200 text-xs font-mono">
+                          <FileText
+                            size={15}
+                            className={hasUrl ? "text-blue-500 shrink-0" : "text-gray-400 shrink-0"}
+                          />
+                          <span
+                            className={`truncate flex-1 ${
+                              hasUrl ? "text-gray-800 font-semibold" : "text-gray-400 italic font-sans"
+                            }`}
+                          >
+                            {hasUrl
+                              ? isApproved
+                                ? "Verified & Approved by Admin"
+                                : "Document uploaded (awaiting admin approval)"
+                              : "Not uploaded yet - please upload document"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-3 border-t border-gray-200/60">
+                        {hasUrl && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewDoc({
+                                title: doc.name,
+                                url: doc.url!,
+                              })
                             }
-                          }}
-                        />
-                      </label>
+                            className="flex-1 py-1.5 px-3 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                          >
+                            <Eye size={13} />
+                            <span>View</span>
+                          </button>
+                        )}
+
+                        <label className="flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer">
+                          <Upload size={13} />
+                          <span>{hasUrl ? "Re-upload" : "Upload Document"}</span>
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                handleDocUpload(doc.key, e.target.files[0]);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -2012,21 +2172,38 @@ export default function AssociateProfileSettingsView({
               </button>
             </div>
 
-            <div className="p-8 text-center bg-slate-50 flex flex-col items-center justify-center">
-              <div className="w-24 h-32 bg-white rounded-lg border-2 border-dashed border-amber-300 flex flex-col items-center justify-center text-amber-600 mb-4 shadow-sm">
-                <FileText size={36} />
-                <span className="text-[10px] font-bold mt-2 uppercase">Official Doc</span>
-              </div>
-              <h4 className="font-bold text-gray-800 text-sm mb-1">
-                {previewDoc.title}
-              </h4>
-              <p className="text-xs text-gray-500 max-w-xs mb-4">
-                Verified and securely stored in compliance with Shree Karni Real Estate legal guidelines.
-              </p>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                <CheckCircle2 size={13} />
-                <span>Admin Verified & Authenticated</span>
-              </span>
+            <div className="p-6 text-center bg-slate-50 flex flex-col items-center justify-center max-h-[70vh] overflow-y-auto">
+              {previewDoc.url && (previewDoc.url.startsWith("data:image/") || previewDoc.url.match(/\.(jpeg|jpg|png|webp|gif)/i)) ? (
+                <div className="w-full flex flex-col items-center">
+                  <img
+                    src={previewDoc.url}
+                    alt={previewDoc.title}
+                    className="max-h-[50vh] max-w-full object-contain rounded-lg shadow-md border border-gray-200 mb-3"
+                  />
+                  <h4 className="font-bold text-gray-800 text-sm mb-1">
+                    {previewDoc.title}
+                  </h4>
+                </div>
+              ) : previewDoc.url && (previewDoc.url.startsWith("data:application/pdf") || previewDoc.url.endsWith(".pdf")) ? (
+                <iframe
+                  src={previewDoc.url}
+                  title={previewDoc.title}
+                  className="w-full h-[55vh] border-0 rounded-lg shadow-sm"
+                />
+              ) : (
+                <>
+                  <div className="w-24 h-32 bg-white rounded-lg border-2 border-dashed border-amber-300 flex flex-col items-center justify-center text-amber-600 mb-4 shadow-sm">
+                    <FileText size={36} />
+                    <span className="text-[10px] font-bold mt-2 uppercase">Official Doc</span>
+                  </div>
+                  <h4 className="font-bold text-gray-800 text-sm mb-1">
+                    {previewDoc.title}
+                  </h4>
+                  <p className="text-xs text-gray-500 max-w-xs mb-3">
+                    Verified and securely stored in compliance with Shree Karni Real Estate legal guidelines.
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="p-4 bg-gray-100 flex items-center justify-end">

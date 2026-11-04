@@ -58,13 +58,21 @@ model User {
   accountHolder   String?
   bankBranch      String?
   upiId           String?
-  bankStatus      String?   @default("VERIFIED") // PENDING, VERIFIED, REJECTED
+  bankStatus      String?   @default("PENDING") // PENDING, APPROVED, REJECTED
   aadhaarDocUrl   String?
   panDocUrl       String?
   photoDocUrl     String?
   addressDocUrl   String?
   bankDocUrl      String?
-  kycStatus       String?   @default("VERIFIED") // PENDING, VERIFIED, REJECTED
+
+  aadhaarStatus   String?   @default("PENDING") // PENDING, APPROVED, REJECTED
+  panStatus       String?   @default("PENDING") // PENDING, APPROVED, REJECTED
+  photoStatus     String?   @default("PENDING") // PENDING, APPROVED, REJECTED
+  addressStatus   String?   @default("PENDING") // PENDING, APPROVED, REJECTED
+  bankDocStatus   String?   @default("PENDING") // PENDING, APPROVED, REJECTED
+
+  kycStatus       String?   @default("PENDING") // PENDING, APPROVED, REJECTED
+  kycRejectReason String?
   twoFactorEnabled Boolean  @default(false)
   notificationPrefs String?
   lastLoginAt     DateTime? @default(now())

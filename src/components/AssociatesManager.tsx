@@ -6,7 +6,8 @@ import StatusBadge from "@/components/StatusBadge";
 import AddAssociateModal from "@/app/admin/associates/AddAssociateModal";
 import EditAssociateModal from "@/app/admin/associates/EditAssociateModal";
 import AssociateRowActions from "@/app/admin/associates/AssociateRowActions";
-import { Search, Users, CheckCircle2, Edit3, Sparkles, RefreshCw } from "lucide-react";
+import AdminKycModal from "@/components/admin/AdminKycModal";
+import { Search, Users, CheckCircle2, Edit3, Sparkles, RefreshCw, FileText, Clock, ShieldCheck, XCircle } from "lucide-react";
 import {
   mergeWithLocalCache,
   saveToLocalCache,
@@ -30,6 +31,19 @@ export interface AssociateItem {
   referredBy?: { id?: string; name: string; memberId: string } | null;
   _count?: { referrals: number; sales: number };
   createdAt?: string | Date;
+  avatarUrl?: string | null;
+  aadhaarDocUrl?: string | null;
+  panDocUrl?: string | null;
+  photoDocUrl?: string | null;
+  addressDocUrl?: string | null;
+  bankDocUrl?: string | null;
+  aadhaarStatus?: string | null;
+  panStatus?: string | null;
+  photoStatus?: string | null;
+  addressStatus?: string | null;
+  bankDocStatus?: string | null;
+  kycStatus?: string | null;
+  kycRejectReason?: string | null;
 }
 
 export default function AssociatesManager({
@@ -46,8 +60,10 @@ export default function AssociatesManager({
   const router = useRouter();
   const [associates, setAssociates] = useState<AssociateItem[]>(initialAssociates);
   const [editingAssociate, setEditingAssociate] = useState<AssociateItem | null>(null);
+  const [kycAssociate, setKycAssociate] = useState<AssociateItem | null>(null);
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState("ALL");
+  const [kycFilter, setKycFilter] = useState("ALL");
   const [toast, setToast] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -229,7 +245,13 @@ export default function AssociatesManager({
       phone.includes(search);
 
     const matchRank = rankFilter === "ALL" || assoc.rank === rankFilter;
-    return matchSearch && matchRank;
+    const matchKyc =
+      kycFilter === "ALL" ||
+      (kycFilter === "APPROVED" && (assoc.kycStatus === "APPROVED" || assoc.kycStatus === "VERIFIED")) ||
+      (kycFilter === "PENDING" && assoc.kycStatus !== "APPROVED" && assoc.kycStatus !== "VERIFIED" && assoc.kycStatus !== "REJECTED") ||
+      (kycFilter === "REJECTED" && assoc.kycStatus === "REJECTED");
+
+    return matchSearch && matchRank && matchKyc;
   });
 
   const displayList = maxRows ? filtered.slice(0, maxRows) : filtered;
@@ -316,7 +338,7 @@ export default function AssociatesManager({
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <span className="text-xs text-gray-500 font-medium shrink-0">Rank:</span>
           <select
             value={rankFilter}
@@ -329,6 +351,18 @@ export default function AssociatesManager({
             <option value="Team Leader">Team Leader</option>
             <option value="Branch Manager">Branch Manager</option>
             <option value="Director">Director</option>
+          </select>
+
+          <span className="text-xs text-gray-500 font-medium shrink-0 ml-1">KYC:</span>
+          <select
+            value={kycFilter}
+            onChange={(e) => setKycFilter(e.target.value)}
+            className="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white outline-none w-full sm:w-auto cursor-pointer"
+          >
+            <option value="ALL">All KYC</option>
+            <option value="PENDING">Pending Approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
           </select>
         </div>
       </div>
@@ -347,6 +381,7 @@ export default function AssociatesManager({
                 <th className="px-4 py-3 text-left">Downline</th>
                 <th className="px-4 py-3 text-left">Sales</th>
                 <th className="px-4 py-3 text-left">Wallet</th>
+                <th className="px-4 py-3 text-left">KYC Docs</th>
                 <th className="px-4 py-3 text-left">Status</th>
                 <th className="px-4 py-3 text-left">Actions</th>
               </tr>
@@ -354,7 +389,7 @@ export default function AssociatesManager({
             <tbody className="divide-y divide-gray-100">
               {displayList.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={11} className="px-4 py-10 text-center text-gray-500">
                     <p className="font-medium text-gray-700">No associates found</p>
                     <p className="text-xs text-gray-400 mt-1">
                       {search ? "Try adjusting your search criteria" : "Click '+ Add New Associate' above to register your first associate."}
@@ -501,7 +536,46 @@ export default function AssociatesManager({
                       </button>
                     </td>
 
-                    {/* 9. Status (editable) */}
+                    {/* 9. KYC Docs (Admin Verification) */}
+                    <td className="px-4 py-3 text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            assoc.kycStatus === "APPROVED" || assoc.kycStatus === "VERIFIED"
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                              : assoc.kycStatus === "REJECTED"
+                              ? "bg-red-100 text-red-800 border border-red-200"
+                              : "bg-amber-100 text-amber-800 border border-amber-200"
+                          }`}
+                        >
+                          {assoc.kycStatus === "APPROVED" || assoc.kycStatus === "VERIFIED" ? (
+                            <CheckCircle2 size={11} className="text-emerald-600" />
+                          ) : assoc.kycStatus === "REJECTED" ? (
+                            <XCircle size={11} className="text-red-600" />
+                          ) : (
+                            <Clock size={11} className="text-amber-600" />
+                          )}
+                          <span>
+                            {assoc.kycStatus === "APPROVED" || assoc.kycStatus === "VERIFIED"
+                              ? "Approved"
+                              : assoc.kycStatus === "REJECTED"
+                              ? "Rejected"
+                              : "Pending"}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setKycAssociate(assoc)}
+                          title="Review and verify 5 KYC documents"
+                          className="px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <FileText size={12} />
+                          <span>Verify</span>
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* 10. Status (editable) */}
                     <td className="px-4 py-3 text-sm">
                       <button
                         type="button"
@@ -513,7 +587,7 @@ export default function AssociatesManager({
                       </button>
                     </td>
 
-                    {/* 10. Actions (Edit button, quick rank, activate/deactivate, delete) */}
+                    {/* 11. Actions (Edit button, quick rank, activate/deactivate, delete) */}
                     <td className="px-4 py-3 text-sm">
                       <AssociateRowActions
                         id={assoc.id}
@@ -533,6 +607,20 @@ export default function AssociatesManager({
           </table>
         </div>
       </div>
+
+      {/* Admin KYC Verification Modal */}
+      {kycAssociate && (
+        <AdminKycModal
+          isOpen={kycAssociate !== null}
+          onClose={() => setKycAssociate(null)}
+          associate={kycAssociate as any}
+          onUpdated={(updated) => {
+            handleAssociateUpdated(updated.id, updated as any);
+            setKycAssociate(null);
+            showToast(`KYC status updated for ${updated.name}!`);
+          }}
+        />
+      )}
 
       {/* Edit Associate Modal */}
       {editingAssociate && (
