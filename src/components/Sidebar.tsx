@@ -68,7 +68,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
     { label: "Dashboard", icon: Home, href: "/dashboard" },
     { label: "My Business", icon: Briefcase, href: "/dashboard/plots" },
     { label: "My Wallet", icon: CreditCard, href: "/dashboard/incentives/wallet" },
-    { label: "My Team", icon: Users, href: "/dashboard/team/tree" },
+    { label: "My Team", icon: Users, href: "/dashboard/team" },
     { label: "Rank & Rewards", icon: Trophy, href: "/dashboard#rank-rewards" },
     { label: "Reports", icon: BarChart3, href: "/dashboard#reports" },
     { label: "Profile & Settings", icon: Settings, href: "/dashboard/profile" },
