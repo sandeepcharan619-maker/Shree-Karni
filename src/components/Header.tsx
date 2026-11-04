@@ -112,11 +112,22 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
 
       {/* Right side: Notifications + User pill + Logout */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Notification Bell with real-time dynamic badge */}
+        {/* Notification Bell: Admin -> Notification Center, Associate -> Recent Account Activity & Audit History */}
         <Link
-          href={isAdmin ? "/admin/notifications" : "#"}
+          href={isAdmin ? "/admin/notifications" : "/dashboard/profile?tab=activity"}
+          onClick={() => {
+            if (!isAdmin && typeof window !== "undefined") {
+              window.dispatchEvent(
+                new CustomEvent("skr-navigate-tab", { detail: { tab: "activity" } })
+              );
+            }
+          }}
           className="relative p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition cursor-pointer"
-          title={isAdmin ? `Notifications (${unreadNotifs} unread)` : "Notifications"}
+          title={
+            isAdmin
+              ? `Notifications (${unreadNotifs} unread)`
+              : "Recent Account Activity & Audit History"
+          }
         >
           <Bell size={20} strokeWidth={2} />
           {isAdmin && unreadNotifs > 0 && (

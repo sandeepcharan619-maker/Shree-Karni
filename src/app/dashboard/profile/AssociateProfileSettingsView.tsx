@@ -279,6 +279,61 @@ export default function AssociateProfileSettingsView({
     };
   }, []);
 
+  // Handle tab navigation from Bell icon or external links (e.g. ?tab=activity or #activity)
+  useEffect(() => {
+    const handleUrlTab = () => {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get("tab");
+        const hash = window.location.hash.replace("#", "");
+        const target = tabParam || hash;
+        if (
+          target &&
+          [
+            "personal",
+            "professional",
+            "bank",
+            "kyc",
+            "security",
+            "notifications",
+            "activity",
+          ].includes(target)
+        ) {
+          setActiveTab(target as any);
+          if (target === "activity") {
+            setTimeout(() => {
+              const el = document.getElementById("account-activity-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+            }, 100);
+          }
+        }
+      }
+    };
+
+    handleUrlTab();
+    window.addEventListener("popstate", handleUrlTab);
+    window.addEventListener("hashchange", handleUrlTab);
+
+    const handleCustomNav = (e: any) => {
+      if (e.detail?.tab) {
+        setActiveTab(e.detail.tab);
+        if (e.detail.tab === "activity") {
+          setTimeout(() => {
+            const el = document.getElementById("account-activity-section");
+            if (el) el.scrollIntoView({ behavior: "smooth" });
+          }, 100);
+        }
+      }
+    };
+    window.addEventListener("skr-navigate-tab", handleCustomNav);
+
+    return () => {
+      window.removeEventListener("popstate", handleUrlTab);
+      window.removeEventListener("hashchange", handleUrlTab);
+      window.removeEventListener("skr-navigate-tab", handleCustomNav);
+    };
+  }, []);
+
   // Security Form State
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -2208,7 +2263,7 @@ export default function AssociateProfileSettingsView({
           {/* TAB 7: ACCOUNT ACTIVITY TIMELINE */}
           {/* =================================================================== */}
           {activeTab === "activity" && (
-            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-6 md:p-8 animate-in fade-in space-y-6">
+            <div id="account-activity-section" className="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-6 md:p-8 animate-in fade-in space-y-6">
               <div className="pb-5 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                   <Activity className="text-amber-500" size={22} />
