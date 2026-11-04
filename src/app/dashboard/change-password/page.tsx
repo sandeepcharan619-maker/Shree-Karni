@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 export default function ChangePasswordPage() {
   const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -52,7 +53,12 @@ export default function ChangePasswordPage() {
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">Current Password</label>
+              <Link href="/forgot-password" className="text-xs text-blue-600 hover:underline">
+                Forgot Current Password?
+              </Link>
+            </div>
             <input
               type="password"
               value={form.currentPassword}

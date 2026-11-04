@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   User,
   Shield,
@@ -1650,9 +1651,17 @@ export default function AssociateProfileSettingsView({
 
                 <form onSubmit={handleChangePassword} className="space-y-3 max-w-lg">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                      Current Password
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                        Current Password
+                      </label>
+                      <Link
+                        href="/forgot-password"
+                        className="text-[11px] font-semibold text-amber-600 hover:text-amber-700 hover:underline"
+                      >
+                        Forgot Current Password?
+                      </Link>
+                    </div>
                     <input
                       type="password"
                       value={passwordForm.currentPassword}
