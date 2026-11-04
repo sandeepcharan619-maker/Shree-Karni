@@ -170,13 +170,13 @@ export default function AssociateProfileSettingsView({
   const [user, setUser] = useState<AssociateProfileData>(initialUser);
   const [copiedId, setCopiedId] = useState(false);
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
-  const [isEditingBank, setIsEditingBank] = useState(false);
+  const [isEditingBank, setIsEditingBank] = useState(!initialUser.accountNumber);
 
   // Form State for Personal Info
   const [personalForm, setPersonalForm] = useState({
     name: initialUser.name || "",
     fatherName: initialUser.fatherName || "",
-    dob: initialUser.dob || "1994-06-15",
+    dob: initialUser.dob || "",
     gender: initialUser.gender || "Male",
     phone: initialUser.phone || "",
     whatsappNumber: initialUser.whatsappNumber || initialUser.phone || "",
@@ -184,17 +184,17 @@ export default function AssociateProfileSettingsView({
     address: initialUser.address || "",
     city: initialUser.city || "Jaipur",
     state: initialUser.state || "Rajasthan",
-    pincode: initialUser.pincode || "303903",
+    pincode: initialUser.pincode || "",
   });
 
-  // Bank details form
+  // Bank details form (initially blank - associate fills in their own details)
   const [bankForm, setBankForm] = useState({
-    accountHolder: initialUser.accountHolder || initialUser.name || "",
-    bankName: initialUser.bankName || "State Bank of India",
-    accountNumber: initialUser.accountNumber || "38491029482910",
-    ifscCode: initialUser.ifscCode || "SBIN0031821",
-    bankBranch: initialUser.bankBranch || "Vatika Branch, Jaipur",
-    upiId: initialUser.upiId || `${initialUser.phone || "associate"}@sbi`,
+    accountHolder: initialUser.accountHolder || "",
+    bankName: initialUser.bankName || "",
+    accountNumber: initialUser.accountNumber || "",
+    ifscCode: initialUser.ifscCode || "",
+    bankBranch: initialUser.bankBranch || "",
+    upiId: initialUser.upiId || "",
   });
 
   const [maskAccount, setMaskAccount] = useState(true);
@@ -489,10 +489,11 @@ export default function AssociateProfileSettingsView({
 
   // Format masked account
   const displayAccount = useMemo(() => {
-    const raw = bankForm.accountNumber || "38491029482910";
+    const raw = bankForm.accountNumber || "";
+    if (!raw) return "•••• •••• •••• ••••";
     if (!maskAccount) return raw;
     const last4 = raw.slice(-4);
-    return `•••• •••• •••• ${last4 || "0000"}`;
+    return `•••• •••• •••• ${last4}`;
   }, [bankForm.accountNumber, maskAccount]);
 
   const joiningDateFormatted = useMemo(() => {
@@ -1388,6 +1389,19 @@ export default function AssociateProfileSettingsView({
                 )}
               </div>
 
+              {/* Informational Banner if Bank Not Configured */}
+              {!bankForm.accountNumber && (
+                <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs flex items-start gap-3">
+                  <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-900">Payout Account Not Linked</p>
+                    <p className="mt-0.5 text-amber-800">
+                      Your payout bank account details are currently blank. Please fill in your account details below and click <strong>&quot;Save Bank Details&quot;</strong> to link your bank for commission credits.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Luxury Virtual Bank Card */}
               <div className="max-w-md mx-auto rounded-2xl p-6 bg-gradient-to-tr from-[#0a1628] via-[#10243e] to-[#1c385c] text-white shadow-xl border border-amber-400/30 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
@@ -1396,14 +1410,25 @@ export default function AssociateProfileSettingsView({
                   <div className="flex items-center gap-2">
                     <Building size={20} className="text-amber-400" />
                     <span className="font-bold text-sm tracking-wide text-amber-200 uppercase">
-                      {bankForm.bankName || "STATE BANK OF INDIA"}
+                      {bankForm.bankName || "NO BANK ACCOUNT LINKED"}
                     </span>
                   </div>
 
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 border border-emerald-400 text-emerald-300">
-                    <CheckCircle2 size={12} />
-                    <span>VERIFIED</span>
-                  </span>
+                  {user.bankStatus === "APPROVED" || user.bankStatus === "VERIFIED" ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 border border-emerald-400 text-emerald-300">
+                      <CheckCircle2 size={12} />
+                      <span>VERIFIED</span>
+                    </span>
+                  ) : bankForm.accountNumber ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 border border-amber-400 text-amber-300">
+                      <Clock size={12} />
+                      <span>PENDING VERIFICATION</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/20 border border-slate-400 text-slate-300">
+                      <span>NOT LINKED</span>
+                    </span>
+                  )}
                 </div>
 
                 {/* Account Number with Mask Toggle */}
@@ -1431,7 +1456,7 @@ export default function AssociateProfileSettingsView({
                       Account Holder
                     </span>
                     <p className="font-bold text-white uppercase truncate">
-                      {bankForm.accountHolder || user.name}
+                      {bankForm.accountHolder || user.name || "NOT SPECIFIED"}
                     </p>
                   </div>
 
@@ -1440,7 +1465,7 @@ export default function AssociateProfileSettingsView({
                       IFSC Code
                     </span>
                     <p className="font-mono font-bold text-amber-300">
-                      {bankForm.ifscCode}
+                      {bankForm.ifscCode || "NOT LINKED"}
                     </p>
                   </div>
                 </div>
@@ -1461,6 +1486,7 @@ export default function AssociateProfileSettingsView({
                       onChange={(e) =>
                         setBankForm({ ...bankForm, accountHolder: e.target.value })
                       }
+                      placeholder="Account holder name as per bank records"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none disabled:bg-gray-50 disabled:text-gray-500 transition"
                       required
                     />
@@ -1478,6 +1504,7 @@ export default function AssociateProfileSettingsView({
                       onChange={(e) =>
                         setBankForm({ ...bankForm, bankName: e.target.value })
                       }
+                      placeholder="e.g. State Bank of India, HDFC Bank, ICICI..."
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none disabled:bg-gray-50 disabled:text-gray-500 transition"
                       required
                     />
@@ -1498,6 +1525,7 @@ export default function AssociateProfileSettingsView({
                           accountNumber: e.target.value,
                         })
                       }
+                      placeholder="Enter your bank account number"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-900 font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none disabled:bg-gray-50 disabled:text-gray-500 transition"
                       required
                     />
@@ -1518,6 +1546,7 @@ export default function AssociateProfileSettingsView({
                           ifscCode: e.target.value.toUpperCase(),
                         })
                       }
+                      placeholder="e.g. SBIN0031821"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-900 font-mono uppercase focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none disabled:bg-gray-50 disabled:text-gray-500 transition"
                       required
                     />
@@ -1535,6 +1564,7 @@ export default function AssociateProfileSettingsView({
                       onChange={(e) =>
                         setBankForm({ ...bankForm, bankBranch: e.target.value })
                       }
+                      placeholder="e.g. Vatika Branch, Tonk Road, Jaipur"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none disabled:bg-gray-50 disabled:text-gray-500 transition"
                     />
                   </div>
@@ -1551,7 +1581,7 @@ export default function AssociateProfileSettingsView({
                       onChange={(e) =>
                         setBankForm({ ...bankForm, upiId: e.target.value })
                       }
-                      placeholder="username@okhdfcbank"
+                      placeholder="e.g. username@okhdfcbank or phone@paytm"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none disabled:bg-gray-50 disabled:text-gray-500 transition"
                     />
                   </div>
