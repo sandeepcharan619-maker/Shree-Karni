@@ -259,9 +259,25 @@ export default async function AssociateDashboard() {
 
               {/* Associate text details */}
               <div className="min-w-0 flex-1 text-center sm:text-left space-y-1.5">
-                <h2 className="text-xl font-extrabold text-gray-900 tracking-tight leading-tight truncate">
-                  {associateName}
-                </h2>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <h2 className="text-xl font-extrabold text-gray-900 tracking-tight leading-tight truncate">
+                    {associateName}
+                  </h2>
+                  {user?.kycStatus === "APPROVED" || user?.kycStatus === "VERIFIED" ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                      <CheckCircle2 size={11} /> KYC Approved
+                    </span>
+                  ) : (
+                    <Link
+                      href="/dashboard/profile"
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition shadow-2xs"
+                      title="Click to view Documents & KYC tab"
+                    >
+                      <Clock size={11} className="text-red-500" />
+                      <span>KYC Pending <span className="text-[9px] font-bold text-red-500 lowercase">(pending)</span></span>
+                    </Link>
+                  )}
+                </div>
                 <p className="text-xs font-semibold text-gray-500 font-mono">
                   Associate ID : <span className="text-blue-700 font-bold">{associateId}</span>
                 </p>

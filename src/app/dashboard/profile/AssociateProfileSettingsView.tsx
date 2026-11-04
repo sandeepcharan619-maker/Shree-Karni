@@ -217,6 +217,68 @@ export default function AssociateProfileSettingsView({
   });
   const [previewDoc, setPreviewDoc] = useState<{ title: string; url: string } | null>(null);
 
+  // Check if all 5 documents are approved by admin
+  const isKycApproved =
+    user.kycStatus === "APPROVED" ||
+    user.kycStatus === "VERIFIED" ||
+    (docStatuses.aadhaarStatus === "APPROVED" &&
+      docStatuses.panStatus === "APPROVED" &&
+      docStatuses.photoStatus === "APPROVED" &&
+      docStatuses.addressStatus === "APPROVED" &&
+      docStatuses.bankDocStatus === "APPROVED");
+
+  // Check if any document is pending
+  const hasPendingDocs =
+    !isKycApproved &&
+    (docStatuses.aadhaarStatus !== "APPROVED" ||
+      docStatuses.panStatus !== "APPROVED" ||
+      docStatuses.photoStatus !== "APPROVED" ||
+      docStatuses.addressStatus !== "APPROVED" ||
+      docStatuses.bankDocStatus !== "APPROVED");
+
+  // Real-time synchronization of KYC & approval status from database
+  useEffect(() => {
+    const syncLatestStatus = () => {
+      fetch(`/api/profile?_t=${Date.now()}`, { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.user) {
+            setUser((prev) => ({ ...prev, ...data.user }));
+            setDocStatuses({
+              aadhaarStatus: data.user.aadhaarStatus || "PENDING",
+              panStatus: data.user.panStatus || "PENDING",
+              photoStatus: data.user.photoStatus || "PENDING",
+              addressStatus: data.user.addressStatus || "PENDING",
+              bankDocStatus: data.user.bankDocStatus || "PENDING",
+            });
+            if (
+              data.user.aadhaarDocUrl ||
+              data.user.panDocUrl ||
+              data.user.photoDocUrl ||
+              data.user.addressDocUrl ||
+              data.user.bankDocUrl
+            ) {
+              setDocUrls({
+                aadhaarDocUrl: data.user.aadhaarDocUrl || "",
+                panDocUrl: data.user.panDocUrl || "",
+                photoDocUrl: data.user.photoDocUrl || data.user.avatarUrl || "",
+                addressDocUrl: data.user.addressDocUrl || "",
+                bankDocUrl: data.user.bankDocUrl || "",
+              });
+            }
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener("focus", syncLatestStatus);
+    const interval = setInterval(syncLatestStatus, 15000);
+    return () => {
+      window.removeEventListener("focus", syncLatestStatus);
+      clearInterval(interval);
+    };
+  }, []);
+
   // Security Form State
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -628,7 +690,7 @@ export default function AssociateProfileSettingsView({
                   </span>
 
                   {/* KYC Verification Status */}
-                  {user.kycStatus === "APPROVED" || user.kycStatus === "VERIFIED" ? (
+                  {isKycApproved ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
                       <CheckCircle2 size={12} />
                       <span>KYC Approved</span>
@@ -639,9 +701,9 @@ export default function AssociateProfileSettingsView({
                       <span>KYC Rejected</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 border border-amber-500/30 text-amber-300">
-                      <Clock size={12} />
-                      <span>KYC Pending</span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-500/15 border border-red-500/30 text-red-300">
+                      <Clock size={12} className="text-red-400" />
+                      <span>KYC Pending <span className="text-[10px] font-bold text-red-400 lowercase">(pending)</span></span>
                     </span>
                   )}
                 </div>
@@ -883,7 +945,20 @@ export default function AssociateProfileSettingsView({
                       size={17}
                       className={isActive ? "text-amber-400" : "text-gray-400"}
                     />
-                    <span>{item.label}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span>{item.label}</span>
+                      {item.id === "kyc" && (
+                        hasPendingDocs ? (
+                          <span className="text-[10px] font-bold text-red-500 lowercase tracking-normal">
+                            pending
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-500 lowercase tracking-normal">
+                            approved
+                          </span>
+                        )
+                      )}
+                    </div>
                   </div>
                   <ChevronRight
                     size={15}
@@ -1625,13 +1700,18 @@ export default function AssociateProfileSettingsView({
                     <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                       <FileText className="text-amber-500" size={22} />
                       <span>Documents & KYC Verification</span>
+                      {hasPendingDocs && (
+                        <span className="text-[10px] font-bold text-red-500 lowercase bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                          pending
+                        </span>
+                      )}
                     </h2>
                     <p className="text-xs text-gray-500 mt-1">
                       Upload government-issued IDs for KYC approval and legal associate certification.
                     </p>
                   </div>
 
-                  {user.kycStatus === "APPROVED" || user.kycStatus === "VERIFIED" ? (
+                  {isKycApproved ? (
                     <span className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 border border-emerald-300 text-emerald-800 shadow-2xs">
                       <CheckCircle2 size={15} className="text-emerald-600" />
                       <span>KYC APPROVED</span>
@@ -1642,16 +1722,16 @@ export default function AssociateProfileSettingsView({
                       <span>KYC REJECTED</span>
                     </span>
                   ) : (
-                    <span className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 border border-amber-300 text-amber-800 shadow-2xs">
-                      <Clock size={15} className="text-amber-600" />
-                      <span>KYC PENDING</span>
+                    <span className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-red-50 border border-red-200 text-red-600 shadow-2xs">
+                      <Clock size={15} className="text-red-500" />
+                      <span>KYC PENDING <span className="text-[10px] font-bold text-red-500 lowercase">(pending)</span></span>
                     </span>
                   )}
                 </div>
               </div>
 
               {/* Informational Guidance Notice */}
-              {user.kycStatus !== "APPROVED" && user.kycStatus !== "VERIFIED" && (
+              {!isKycApproved && (
                 <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-950 text-xs flex items-start gap-3">
                   <Clock size={18} className="text-amber-600 shrink-0 mt-0.5" />
                   <div className="space-y-1">
@@ -1734,9 +1814,7 @@ export default function AssociateProfileSettingsView({
                                 ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                 : isRejected
                                 ? "bg-red-100 text-red-800 border border-red-200"
-                                : hasUrl
-                                ? "bg-amber-100 text-amber-800 border border-amber-200"
-                                : "bg-gray-100 text-gray-700 border border-gray-200"
+                                : "bg-red-50 text-red-600 border border-red-200"
                             }`}
                           >
                             {isApproved ? (
@@ -1744,16 +1822,14 @@ export default function AssociateProfileSettingsView({
                             ) : isRejected ? (
                               <XCircle size={11} className="text-red-600" />
                             ) : (
-                              <Clock size={11} className="text-amber-600" />
+                              <Clock size={11} className="text-red-500" />
                             )}
-                            <span>
+                            <span className={isApproved ? "" : "lowercase"}>
                               {isApproved
                                 ? "Approved"
                                 : isRejected
                                 ? "Rejected"
-                                : hasUrl
-                                ? "Pending Approval"
-                                : "Pending Upload"}
+                                : "pending"}
                             </span>
                           </span>
                         </div>
@@ -1762,18 +1838,22 @@ export default function AssociateProfileSettingsView({
                         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-white border border-gray-200 text-xs font-mono">
                           <FileText
                             size={15}
-                            className={hasUrl ? "text-blue-500 shrink-0" : "text-gray-400 shrink-0"}
+                            className={hasUrl ? (isApproved ? "text-emerald-600 shrink-0" : "text-amber-500 shrink-0") : "text-gray-400 shrink-0"}
                           />
                           <span
                             className={`truncate flex-1 ${
-                              hasUrl ? "text-gray-800 font-semibold" : "text-gray-400 italic font-sans"
+                              hasUrl
+                                ? isApproved
+                                  ? "text-emerald-800 font-semibold"
+                                  : "text-red-600 font-semibold"
+                                : "text-gray-400 italic font-sans"
                             }`}
                           >
                             {hasUrl
                               ? isApproved
                                 ? "Verified & Approved by Admin"
-                                : "Document uploaded (awaiting admin approval)"
-                              : "Not uploaded yet - please upload document"}
+                                : "Document uploaded (pending admin approval)"
+                              : "Not uploaded yet - pending upload"}
                           </span>
                         </div>
                       </div>
