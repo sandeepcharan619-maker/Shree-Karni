@@ -119,29 +119,23 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
         }`}
       >
         <div>
-          {/* Top Logo Section */}
-          <div className="p-5 border-b border-white/10 text-center">
-            <Link href="/" className="inline-block group">
+          {/* Top Logo Section (4x Bigger Brand Logo) */}
+          <div className="p-4 sm:p-5 border-b border-white/10 text-center bg-black/15">
+            <Link href={isAdmin ? "/admin" : "/dashboard"} className="inline-block group w-full">
               <div className="flex flex-col items-center">
-                {/* Gold architectural icon or logo */}
-                <div className="w-12 h-12 mb-2 flex items-center justify-center">
+                {/* 4x Bigger Shree Karni Real Estate Logo */}
+                <div className="w-full max-w-[220px] py-2 flex items-center justify-center">
                   <Image
                     src="/logo.png"
                     alt="Shree Karni Real Estate"
-                    width={160}
-                    height={40}
-                    className="h-10 w-auto object-contain brightness-125"
+                    width={520}
+                    height={120}
+                    className="w-full h-auto max-h-20 object-contain drop-shadow-md brightness-110 group-hover:scale-105 transition-transform duration-300"
                     priority
                   />
                 </div>
-                <h2 className="text-base font-bold text-[#e9b04c] tracking-tight font-serif leading-tight">
-                  Shree Karni
-                </h2>
-                <p className="text-xs font-semibold text-white tracking-widest uppercase">
-                  Real Estate
-                </p>
-                <p className="text-[10px] text-amber-200/80 tracking-wider mt-0.5 font-medium">
-                  Dream • Invest • Grow
+                <p className="text-[10px] text-amber-300/90 font-bold uppercase tracking-widest mt-1">
+                  Vatika, Jaipur • Rajasthan
                 </p>
               </div>
             </Link>

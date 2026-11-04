@@ -367,10 +367,20 @@ export default async function AssociateDashboard() {
               priority
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent flex items-center justify-between px-6 sm:px-8">
-              {/* Location Pin Indicator on the Plot */}
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-red-600/90 border-2 border-white shadow-lg flex items-center justify-center text-white animate-bounce">
+              {/* Location Pin Indicator + 4x Logo on the Plot Banner */}
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-full bg-red-600/90 border-2 border-white shadow-lg flex items-center justify-center text-white animate-bounce shrink-0">
                   <MapPin size={22} />
+                </div>
+                <div className="hidden sm:block">
+                  <Image
+                    src="/logo.png"
+                    alt="Shree Karni Real Estate"
+                    width={260}
+                    height={60}
+                    className="h-11 w-auto object-contain brightness-125 drop-shadow-lg"
+                    priority
+                  />
                 </div>
               </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Building2,
   MapPin,
@@ -132,6 +133,16 @@ export default function AdminDashboardOverview({
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
           <div>
+            <div className="mb-3">
+              <Image
+                src="/logo.png"
+                alt="Shree Karni Real Estate"
+                width={360}
+                height={80}
+                className="h-12 w-auto object-contain brightness-125 drop-shadow-md"
+                priority
+              />
+            </div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-slate-900 tracking-wide uppercase">
                 Vatika, Jaipur Headquarters

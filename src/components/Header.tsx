@@ -95,8 +95,8 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
 
   return (
     <header className="bg-white border-b border-gray-200 text-gray-800 h-[60px] flex items-center justify-between px-3 md:px-6 fixed top-0 left-0 right-0 z-30 shadow-sm select-none">
-      {/* Left side: Hamburger + Dashboard title */}
-      <div className="flex items-center gap-3">
+      {/* Left side: Hamburger + 4x Bigger Logo + Dashboard title */}
+      <div className="flex items-center gap-3 sm:gap-4">
         <button
           onClick={onToggleSidebar}
           aria-label="Toggle Navigation"
@@ -105,9 +105,24 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
           <Menu size={22} strokeWidth={2.2} />
         </button>
 
-        <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">
-          {isAdmin ? "Admin Dashboard" : "Associate Portal"}
-        </h1>
+        <Link
+          href={isAdmin ? "/admin" : "/dashboard"}
+          className="flex items-center gap-2.5 sm:gap-3.5 group"
+          title="Shree Karni Real Estate"
+        >
+          <Image
+            src="/logo.png"
+            alt="Shree Karni Real Estate"
+            width={320}
+            height={70}
+            className="h-10 sm:h-12 w-auto object-contain drop-shadow-xs group-hover:scale-102 transition"
+            priority
+          />
+          <span className="hidden md:inline-block h-6 w-px bg-gray-200" />
+          <h1 className="hidden sm:inline-block text-sm md:text-base font-bold text-gray-900 tracking-tight">
+            {isAdmin ? "Admin Dashboard" : "Associate Portal"}
+          </h1>
+        </Link>
       </div>
 
       {/* Right side: Notifications + User pill + Logout */}
