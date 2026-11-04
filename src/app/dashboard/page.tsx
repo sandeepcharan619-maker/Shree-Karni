@@ -517,7 +517,7 @@ export default async function AssociateDashboard() {
           <div className="bg-[#0d1b2a] text-white px-5 py-3.5 flex items-center justify-between">
             <h3 className="text-sm font-bold tracking-tight">My Business</h3>
             <Link
-              href="/dashboard/plots"
+              href="/dashboard/business"
               className="text-xs font-semibold text-amber-300 hover:text-white flex items-center gap-1 transition"
             >
               <span>View All</span>
@@ -793,9 +793,9 @@ export default async function AssociateDashboard() {
           </div>
 
           <div className="p-3.5 flex-1 grid grid-cols-2 gap-2.5">
-            {/* View Reports */}
+            {/* View Reports / Business */}
             <Link
-              href="/dashboard/plots"
+              href="/dashboard/business"
               className="p-2.5 bg-gray-50 hover:bg-blue-50/70 rounded-xl border border-gray-100 hover:border-blue-200 transition flex flex-col items-center justify-center text-center group"
             >
               <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-1 group-hover:scale-110 transition">
