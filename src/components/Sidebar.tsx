@@ -72,7 +72,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
     { label: "Rank & Rewards", icon: Trophy, href: "/dashboard#rank-rewards" },
     { label: "Reports", icon: BarChart3, href: "/dashboard#reports" },
     { label: "Profile & Settings", icon: Settings, href: "/dashboard/profile" },
-    { label: "Support", icon: Headphones, href: "tel:+919829123456" },
+    { label: "Support", icon: Headphones, href: "tel:+918952821872" },
   ];
 
   // Admin Menu Items
@@ -135,6 +135,32 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
           {/* Navigation Links */}
           <nav className="p-3 space-y-1.5">
             {(isAdmin ? adminMenu : associateMenu).map((item) => {
+              const isTel = item.href.startsWith("tel:");
+              if (isTel) {
+                return (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => {
+                      if (onClose) onClose();
+                    }}
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-all group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon
+                        size={17}
+                        strokeWidth={2}
+                        className="text-slate-400 group-hover:text-amber-400 transition-colors"
+                      />
+                      <span>{item.label}</span>
+                    </div>
+                    <span className="text-[10px] text-amber-300/90 font-mono font-medium">
+                      8952821872
+                    </span>
+                  </a>
+                );
+              }
+
               const isActive =
                 item.href === "/dashboard"
                   ? pathname === "/dashboard"

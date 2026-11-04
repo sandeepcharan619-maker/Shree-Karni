@@ -834,7 +834,8 @@ export default async function AssociateDashboard() {
 
             {/* Need Help? */}
             <a
-              href="tel:+919829123456"
+              href="tel:+918952821872"
+              title="Call Support: +91 8952821872"
               className="p-2.5 bg-gray-50 hover:bg-blue-50/70 rounded-xl border border-gray-100 hover:border-blue-200 transition flex flex-col items-center justify-center text-center group"
             >
               <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-1 group-hover:scale-110 transition">
@@ -842,6 +843,9 @@ export default async function AssociateDashboard() {
               </div>
               <span className="text-[11px] font-bold text-gray-800 group-hover:text-blue-700 leading-tight">
                 Need Help?
+              </span>
+              <span className="text-[10px] text-blue-600 font-semibold mt-0.5">
+                8952821872
               </span>
             </a>
           </div>
