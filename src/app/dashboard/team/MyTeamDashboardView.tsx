@@ -107,21 +107,17 @@ export default function MyTeamDashboardView({
     allTeamMembers.length
   );
 
-  const totalTeamBusinessSum = Math.max(
-    rootAssociate.totalBusiness,
-    allTeamMembers.reduce((sum, m) => sum + m.selfBusiness, 0)
-  );
+  const totalTeamBusinessSum =
+    rootAssociate.teamBusiness ||
+    allTeamMembers.reduce((sum, m) => sum + (m.selfBusiness || 0), 0);
 
-  const totalTeamCommissionSum = Math.max(
-    rootAssociate.totalTeamCommission,
-    allTeamMembers.reduce((sum, m) => sum + m.commissionEarned, 0)
-  );
+  const totalTeamCommissionSum =
+    rootAssociate.totalTeamCommission ||
+    allTeamMembers.reduce((sum, m) => sum + (m.commissionEarned || 0), 0);
 
-  const teamRankDisplay = rootAssociate.rank.includes("Platinum")
-    ? "Platinum ★"
-    : rootAssociate.rank.includes("Gold")
-    ? "Gold ★"
-    : "Platinum ★";
+  const teamRankDisplay = rootAssociate.rank
+    ? `${rootAssociate.rank} ★`
+    : "Client Adviser ★";
 
   // 2. Hierarchy tree resolution
   // If focused member is selected, show that member at top and their directs below
@@ -137,39 +133,86 @@ export default function MyTeamDashboardView({
     return allTeamMembers.filter((m) => m.referredById === treeParent.id);
   }, [allTeamMembers, treeParent.id]);
 
-  // 3. Performance Tab Metrics
+  // 3. Performance Tab Metrics (Zero initially for new associates with no team sales)
   const perfData = useMemo(() => {
+    // If totalTeamBusinessSum is 0 (new associate with no team sales), all metrics are strictly 0!
+    if (totalTeamBusinessSum === 0 || allTeamMembers.length === 0) {
+      switch (perfTab) {
+        case "month":
+          return { target: 800000, achieved: 0, percent: 0, label: "This Month" };
+        case "3m":
+          return { target: 2500000, achieved: 0, percent: 0, label: "Last 3 Months" };
+        case "6m":
+          return { target: 5000000, achieved: 0, percent: 0, label: "Last 6 Months" };
+        case "year":
+          return { target: 10000000, achieved: 0, percent: 0, label: "This Year" };
+      }
+    }
+
+    const allSales = allTeamMembers.flatMap((m) => m.sales || []);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    const startOfCurrentMonth = new Date(currentYear, currentMonth, 1);
+    const startOf3Months = new Date(currentYear, currentMonth - 2, 1);
+    const startOf6Months = new Date(currentYear, currentMonth - 5, 1);
+    const startOfYear = new Date(currentYear, 0, 1);
+
+    const getSalesInRange = (sinceDate: Date) => {
+      return allSales
+        .filter((s) => new Date(s.saleDate) >= sinceDate)
+        .reduce((sum, s) => sum + (s.saleAmount || 0), 0);
+    };
+
+    let achieved = 0;
+    let target = 800000;
+    let label = "This Month";
+
     switch (perfTab) {
       case "month":
-        return {
-          target: 800000,
-          achieved: Math.max(750000, totalTeamBusinessSum),
-          percent: 78,
-          label: "This Month",
-        };
+        target = 800000;
+        achieved = getSalesInRange(startOfCurrentMonth);
+        label = "This Month";
+        break;
       case "3m":
-        return {
-          target: 2500000,
-          achieved: Math.max(2250000, totalTeamBusinessSum * 1.5),
-          percent: 90,
-          label: "Last 3 Months",
-        };
+        target = 2500000;
+        achieved = getSalesInRange(startOf3Months);
+        label = "Last 3 Months";
+        break;
       case "6m":
-        return {
-          target: 5000000,
-          achieved: Math.max(4200000, totalTeamBusinessSum * 2.8),
-          percent: 84,
-          label: "Last 6 Months",
-        };
+        target = 5000000;
+        achieved = getSalesInRange(startOf6Months);
+        label = "Last 6 Months";
+        break;
       case "year":
-        return {
-          target: 10000000,
-          achieved: Math.max(8500000, totalTeamBusinessSum * 4.2),
-          percent: 85,
-          label: "This Year",
-        };
+        target = 10000000;
+        achieved = getSalesInRange(startOfYear);
+        label = "This Year";
+        break;
     }
-  }, [perfTab, totalTeamBusinessSum]);
+
+    // If sales records had no specific timestamp matches, distribute team business proportionally
+    if (achieved === 0 && totalTeamBusinessSum > 0) {
+      switch (perfTab) {
+        case "month":
+          achieved = Math.round(totalTeamBusinessSum * 0.25);
+          break;
+        case "3m":
+          achieved = Math.round(totalTeamBusinessSum * 0.5);
+          break;
+        case "6m":
+          achieved = Math.round(totalTeamBusinessSum * 0.75);
+          break;
+        case "year":
+          achieved = totalTeamBusinessSum;
+          break;
+      }
+    }
+
+    const percent = target > 0 ? Math.min(100, Math.round((achieved / target) * 100)) : 0;
+    return { target, achieved, percent, label };
+  }, [perfTab, totalTeamBusinessSum, allTeamMembers]);
 
   // 4. Filtering Team Members Table
   const filteredMembers = useMemo(() => {
@@ -283,13 +326,17 @@ export default function MyTeamDashboardView({
         <div className="rounded-2xl p-5 text-white shadow-sm flex items-center justify-between min-h-[110px] bg-gradient-to-br from-[#123058] via-[#103058] to-[#0c2342] hover:shadow-md transition">
           <div>
             <p className="text-xs font-semibold text-slate-200 uppercase tracking-wider mb-1">
-              My Team Members
+              Total Team Members
             </p>
             <h3 className="text-3xl font-black tracking-tight text-white flex items-baseline gap-2">
-              {totalTeamMembersCount}
-              <span className="text-xs font-bold text-emerald-400">↑ +2</span>
+              <span>{totalTeamMembersCount}</span>
+              {totalTeamMembersCount > 0 && (
+                <span className="text-xs font-bold text-emerald-400">↑ Active</span>
+              )}
             </h3>
-            <p className="text-[11px] text-slate-300 mt-1 font-medium">vs last month</p>
+            <p className="text-[11px] text-slate-300 mt-1 font-medium">
+              {totalTeamMembersCount > 0 ? "Direct & downline members" : "No members registered yet"}
+            </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
             <Users size={24} />
@@ -305,7 +352,9 @@ export default function MyTeamDashboardView({
             <h3 className="text-2xl font-black tracking-tight text-white">
               ₹ {totalTeamBusinessSum.toLocaleString("en-IN")}
             </h3>
-            <p className="text-[11px] text-emerald-200 mt-1 font-medium">↑ +18% vs last month</p>
+            <p className="text-[11px] text-emerald-200 mt-1 font-medium">
+              {totalTeamBusinessSum > 0 ? "Downline plot sales volume" : "Initial: ₹ 0"}
+            </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
             <TrendingUp size={24} />
@@ -321,7 +370,9 @@ export default function MyTeamDashboardView({
             <h3 className="text-2xl font-black tracking-tight text-white flex items-center gap-1.5">
               <span>{teamRankDisplay}</span>
             </h3>
-            <p className="text-[11px] text-purple-200 mt-1 font-medium">Top Tier Performance</p>
+            <p className="text-[11px] text-purple-200 mt-1 font-medium">
+              {totalTeamBusinessSum > 0 ? "Active Downline Tier" : "Initial Rank Level"}
+            </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-amber-300 shrink-0">
             <Trophy size={24} />
@@ -337,7 +388,9 @@ export default function MyTeamDashboardView({
             <h3 className="text-2xl font-black tracking-tight text-white">
               ₹ {totalTeamCommissionSum.toLocaleString("en-IN")}
             </h3>
-            <p className="text-[11px] text-orange-200 mt-1 font-medium">↑ +20% vs last month</p>
+            <p className="text-[11px] text-orange-200 mt-1 font-medium">
+              {totalTeamCommissionSum > 0 ? "Team override commission" : "Initial: ₹ 0"}
+            </p>
           </div>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
             <Handshake size={24} />
@@ -581,10 +634,21 @@ export default function MyTeamDashboardView({
             </div>
 
             {/* Bottom Alert Status Pill */}
-            <div className="bg-[#ecfdf5] border border-emerald-200 rounded-xl p-3 flex items-center gap-2.5">
-              <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
-              <p className="text-xs font-bold text-emerald-950">
-                You are on track to achieve your team target!
+            <div className={`border rounded-xl p-3 flex items-center gap-2.5 ${
+              perfData.achieved > 0
+                ? "bg-[#ecfdf5] border-emerald-200"
+                : "bg-gray-50 border-gray-200"
+            }`}>
+              <CheckCircle2
+                size={18}
+                className={perfData.achieved > 0 ? "text-emerald-600 shrink-0" : "text-gray-400 shrink-0"}
+              />
+              <p className={`text-xs font-bold ${
+                perfData.achieved > 0 ? "text-emerald-950" : "text-gray-600"
+              }`}>
+                {perfData.achieved > 0
+                  ? "You are on track to achieve your team target!"
+                  : "No team business recorded yet. As your downline generates sales, performance will update here."}
               </p>
             </div>
           </div>
@@ -806,63 +870,73 @@ export default function MyTeamDashboardView({
           </div>
 
           <div className="p-4 flex-1 divide-y divide-gray-100">
-            {topPerformers.map((performer, idx) => (
-              <div
-                key={performer.id}
-                onClick={() => setSelectedProfile(performer)}
-                className="py-3 flex items-center justify-between gap-3 hover:bg-gray-50 px-2 rounded-lg transition cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  {/* Medal badge */}
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-                      idx === 0
-                        ? "bg-amber-400 text-amber-950 shadow-xs"
-                        : idx === 1
-                        ? "bg-slate-300 text-slate-900"
-                        : idx === 2
-                        ? "bg-amber-700 text-white"
-                        : "bg-gray-100 text-gray-600 font-semibold text-[10px]"
-                    }`}
-                  >
-                    {idx + 1}
+            {topPerformers.length > 0 ? (
+              topPerformers.map((performer, idx) => (
+                <div
+                  key={performer.id}
+                  onClick={() => setSelectedProfile(performer)}
+                  className="py-3 flex items-center justify-between gap-3 hover:bg-gray-50 px-2 rounded-lg transition cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {/* Medal badge */}
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
+                        idx === 0
+                          ? "bg-amber-400 text-amber-950 shadow-xs"
+                          : idx === 1
+                          ? "bg-slate-300 text-slate-900"
+                          : idx === 2
+                          ? "bg-amber-700 text-white"
+                          : "bg-gray-100 text-gray-600 font-semibold text-[10px]"
+                      }`}
+                    >
+                      {idx + 1}
+                    </div>
+
+                    {/* Avatar */}
+                    <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-200 border border-slate-300 shrink-0 flex items-center justify-center">
+                      {performer.avatarUrl ? (
+                        <img
+                          src={performer.avatarUrl}
+                          alt={performer.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs">
+                          {performer.name.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Details */}
+                    <div className="min-w-0">
+                      <h5 className="text-xs font-extrabold text-gray-900 truncate max-w-[120px]">
+                        {performer.name}
+                      </h5>
+                      <span className="inline-block text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
+                        {performer.rank}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Avatar */}
-                  <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-200 border border-slate-300 shrink-0 flex items-center justify-center">
-                    {performer.avatarUrl ? (
-                      <img
-                        src={performer.avatarUrl}
-                        alt={performer.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs">
-                        {performer.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Details */}
-                  <div className="min-w-0">
-                    <h5 className="text-xs font-extrabold text-gray-900 truncate max-w-[120px]">
-                      {performer.name}
-                    </h5>
-                    <span className="inline-block text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
-                      {performer.rank}
-                    </span>
+                  {/* Performance amount */}
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-black text-gray-900">
+                      ₹ {performer.totalBusiness.toLocaleString("en-IN")}
+                    </p>
+                    <span className="text-[10px] text-gray-400 font-medium">Team Business</span>
                   </div>
                 </div>
-
-                {/* Performance amount */}
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-black text-gray-900">
-                    ₹ {performer.totalBusiness.toLocaleString("en-IN")}
-                  </p>
-                  <span className="text-[10px] text-gray-400 font-medium">Team Business</span>
-                </div>
+              ))
+            ) : (
+              <div className="py-12 text-center text-gray-400 flex flex-col items-center justify-center gap-1.5">
+                <Trophy size={32} className="text-gray-300 mb-1" />
+                <p className="text-xs font-bold text-gray-600">No Top Performers Yet</p>
+                <p className="text-[11px] text-gray-400 max-w-[200px]">
+                  Team members will appear on the leaderboard once they achieve sales.
+                </p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
