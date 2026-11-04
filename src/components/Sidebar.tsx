@@ -77,10 +77,11 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
   // Associate Menu Items exactly matching the screenshot
   const associateMenu = [
     { label: "Dashboard", icon: Home, href: "/dashboard" },
+    { label: "Projects", icon: Building2, href: "/dashboard/projects" },
+    { label: "Plot Inventory & Maps", icon: MapPin, href: "/dashboard/plots" },
     { label: "My Business", icon: Briefcase, href: "/dashboard/business" },
-    { label: "Plot Inventory", icon: MapPin, href: "/dashboard/plots" },
-    { label: "My Wallet", icon: CreditCard, href: "/dashboard/incentives/wallet" },
     { label: "My Team", icon: Users, href: "/dashboard/team" },
+    { label: "My Wallet", icon: CreditCard, href: "/dashboard/incentives/wallet" },
     { label: "Rank & Rewards", icon: Trophy, href: "/dashboard#rank-rewards" },
     { label: "Reports", icon: BarChart3, href: "/dashboard#reports" },
     { label: "Profile & Settings", icon: Settings, href: "/dashboard/profile" },
