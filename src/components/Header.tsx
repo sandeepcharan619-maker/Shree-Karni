@@ -67,12 +67,16 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
       {/* Right side: Notifications + User pill + Logout */}
       <div className="flex items-center gap-2 sm:gap-4">
         {/* Notification Bell with red badge */}
-        <div className="relative p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition cursor-pointer">
+        <Link
+          href={isAdmin ? "/admin/notifications" : "#"}
+          className="relative p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100 transition cursor-pointer"
+          title="Notifications"
+        >
           <Bell size={20} strokeWidth={2} />
           <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-            3
+            4
           </span>
-        </div>
+        </Link>
 
         {/* User Pill */}
         <Link

@@ -21,6 +21,17 @@ import {
   LogOut,
   Compass,
   Trees,
+  Building2,
+  MapPin,
+  CalendarCheck,
+  Contact,
+  Receipt,
+  Award,
+  TrendingUp,
+  Bell,
+  FileText,
+  ShieldCheck,
+  LayoutDashboard,
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
@@ -75,17 +86,19 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
     { label: "Support", icon: Headphones, href: "tel:+918952821872" },
   ];
 
-  // Admin Menu Items
+  // Admin Menu Items - Premium Real Estate Management Suite
   const adminMenu = [
-    { label: "CRM DashBoard", icon: Gauge, href: "/admin" },
-    { label: "Leads & Enquiries", icon: Users, href: "/admin?tab=leads" },
-    { label: "Property Matcher", icon: Compass, href: "/admin?tab=matching" },
-    { label: "All Associates", icon: Users, href: "/admin/associates" },
-    { label: "Register Associate", icon: UserPlus, href: "/admin/associates/create" },
-    { label: "Plot Manager", icon: Repeat, href: "/admin/plots" },
-    { label: "Sales Overview", icon: Banknote, href: "/admin/sales" },
-    { label: "Incentives", icon: Banknote, href: "/admin/incentives" },
-    { label: "Change Password", icon: Settings, href: "/admin/change-password" },
+    { label: "Dashboard", icon: LayoutDashboard, href: "/admin" },
+    { label: "Projects", icon: Building2, href: "/admin/projects" },
+    { label: "Plot Inventory & Map", icon: MapPin, href: "/admin/plots" },
+    { label: "Bookings", icon: CalendarCheck, href: "/admin/bookings" },
+    { label: "Customers", icon: Contact, href: "/admin/customers" },
+    { label: "Payments & Receipts", icon: Receipt, href: "/admin/payments" },
+    { label: "Associates", icon: Users, href: "/admin/associates" },
+    { label: "Commissions", icon: Award, href: "/admin/incentives" },
+    { label: "Reports & Analytics", icon: TrendingUp, href: "/admin/reports" },
+    { label: "Notifications", icon: Bell, href: "/admin/notifications" },
+    { label: "Settings & Logs", icon: Settings, href: "/admin/settings" },
   ];
 
   return (

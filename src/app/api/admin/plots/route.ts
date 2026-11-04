@@ -12,17 +12,42 @@ function isAdmin(session: any): boolean {
   return role === "ADMIN" || username === "admin" || memberId === "SKRADMIN";
 }
 
-// GET: Fetch all plots (available to admin and logged-in associates)
-export async function GET() {
+// GET: Fetch all plots with relations
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const projectId = searchParams.get("projectId");
+    const status = searchParams.get("status");
+
     const plots = await prisma.plot.findMany({
+      where: {
+        ...(projectId ? { projectId } : {}),
+        ...(status ? { status } : {}),
+      },
       include: {
+        project: { select: { id: true, name: true, location: true } },
         sale: { include: { soldBy: { select: { name: true, memberId: true } } } },
+        customer: { select: { id: true, name: true, phone: true, customerId: true } },
+        assignedAssociate: { select: { id: true, name: true, memberId: true } },
+        bookings: {
+          select: {
+            id: true,
+            bookingNumber: true,
+            customerName: true,
+            customerPhone: true,
+            totalPlotAmount: true,
+            bookingAmount: true,
+            balanceAmount: true,
+            status: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
       orderBy: { plotNumber: "asc" },
     });
@@ -34,7 +59,7 @@ export async function GET() {
   }
 }
 
-// POST: Create a new plot
+// POST: Create a new plot or bulk generate plots
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -43,18 +68,102 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { plotNumber, projectName, location, sizeGaj, pricePerGaj, status = "AVAILABLE" } = body;
 
-    if (!plotNumber || !location || !sizeGaj || !pricePerGaj) {
+    // Check if bulk generation
+    if (body.isBulk) {
+      const {
+        prefix = "VTK",
+        startNumber = 1,
+        count = 10,
+        projectName = "Shree Karni Vatika Township",
+        location = "Vatika, Jaipur",
+        sizeGaj = 125,
+        pricePerGaj = 11000,
+        facing = "East",
+        dimensions = "30 x 45",
+        roadWidth = "30 Ft",
+        sector = "Block A",
+        projectId,
+      } = body;
+
+      const createdPlots = [];
+      const numCount = parseInt(count);
+      const startNum = parseInt(startNumber);
+      const size = parseFloat(sizeGaj);
+      const price = parseFloat(pricePerGaj);
+
+      for (let i = 0; i < numCount; i++) {
+        const currentNum = startNum + i;
+        const plotNo = `${prefix.trim().toUpperCase()}-${String(currentNum).padStart(3, "0")}`;
+
+        const existing = await prisma.plot.findUnique({ where: { plotNumber: plotNo } });
+        if (!existing) {
+          const plot = await prisma.plot.create({
+            data: {
+              plotNumber: plotNo,
+              projectName: projectName.trim(),
+              location: location.trim(),
+              sizeGaj: size,
+              pricePerGaj: price,
+              totalPrice: size * price,
+              status: "AVAILABLE",
+              facing,
+              dimensions,
+              roadWidth,
+              sector,
+              projectId: projectId || null,
+            },
+          });
+          createdPlots.push(plot);
+        }
+      }
+
+      await prisma.activityLog.create({
+        data: {
+          action: "PLOTS_BULK_GENERATED",
+          entity: "Plot",
+          details: `Bulk created ${createdPlots.length} plots (${prefix}-${String(startNum).padStart(3, "0")} to ${prefix}-${String(startNum + numCount - 1).padStart(3, "0")}) in ${projectName}`,
+          performedBy: session?.user?.name || "Admin",
+        },
+      });
+
+      try {
+        revalidatePath("/admin");
+        revalidatePath("/admin/plots");
+        revalidatePath("/dashboard/plots");
+      } catch {}
+
+      return NextResponse.json({
+        success: true,
+        message: `Successfully generated ${createdPlots.length} plots!`,
+        count: createdPlots.length,
+      });
+    }
+
+    // Single Plot Creation
+    const {
+      plotNumber,
+      projectName = "Shree Karni Vatika Township",
+      location = "Vatika, Jaipur",
+      sizeGaj,
+      pricePerGaj,
+      status = "AVAILABLE",
+      facing = "East",
+      dimensions = "30 x 45",
+      roadWidth = "30 Ft",
+      sector = "Block A",
+      projectId,
+    } = body;
+
+    if (!plotNumber || !sizeGaj || !pricePerGaj) {
       return NextResponse.json(
-        { error: "Plot number, location, size (GAJ), and price per GAJ are required" },
+        { error: "Plot number, size (GAJ), and rate per GAJ are required" },
         { status: 400 }
       );
     }
 
     const cleanPlotNumber = plotNumber.trim().toUpperCase();
 
-    // Check if plot number already exists
     const existing = await prisma.plot.findFirst({
       where: { plotNumber: cleanPlotNumber },
     });
@@ -79,12 +188,27 @@ export async function POST(req: NextRequest) {
     const plot = await prisma.plot.create({
       data: {
         plotNumber: cleanPlotNumber,
-        projectName: projectName ? projectName.trim() : "Shree Karni City",
-        location: location.trim(),
+        projectName: projectName ? projectName.trim() : "Shree Karni Vatika Township",
+        location: location ? location.trim() : "Vatika, Jaipur",
         sizeGaj: size,
         pricePerGaj: price,
         totalPrice: size * price,
         status: status || "AVAILABLE",
+        facing: facing || "East",
+        dimensions: dimensions || "30 x 45",
+        roadWidth: roadWidth || "30 Ft",
+        sector: sector || "Block A",
+        projectId: projectId || null,
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        action: "PLOT_CREATED",
+        entity: "Plot",
+        entityId: plot.id,
+        details: `Created plot ${plot.plotNumber} (${plot.sizeGaj} Gaj @ ₹${plot.pricePerGaj}/Gaj) in ${plot.projectName}`,
+        performedBy: session?.user?.name || "Admin",
       },
     });
 
@@ -93,9 +217,7 @@ export async function POST(req: NextRequest) {
       revalidatePath("/admin/plots");
       revalidatePath("/dashboard/plots");
       revalidatePath("/");
-    } catch (e) {
-      console.warn("Revalidate cache error:", e);
-    }
+    } catch {}
 
     return NextResponse.json({
       success: true,
@@ -111,7 +233,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH: Update plot status, price or details
+// PATCH: Update plot details, dimensions, facing, road width, price or status
 export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -129,6 +251,11 @@ export async function PATCH(req: NextRequest) {
       pricePerGaj,
       totalPrice,
       status,
+      facing,
+      dimensions,
+      roadWidth,
+      sector,
+      projectId,
       buyerName,
       buyerPhone,
       soldById,
@@ -139,7 +266,6 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Plot ID or Plot Number is required" }, { status: 400 });
     }
 
-    // Find the plot by ID or by Plot Number
     const current = await prisma.plot.findFirst({
       where: {
         OR: [
@@ -162,7 +288,6 @@ export async function PATCH(req: NextRequest) {
 
     const updateData: any = {};
 
-    // 1. Plot Number update with duplicate check
     if (plotNumber && plotNumber.trim()) {
       const cleanPlotNum = plotNumber.trim().toUpperCase();
       if (cleanPlotNum !== current.plotNumber) {
@@ -179,14 +304,17 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    // 2. Project name & Location
     if (projectName !== undefined) updateData.projectName = projectName.trim();
     if (location !== undefined) updateData.location = location.trim();
+    if (facing !== undefined) updateData.facing = facing;
+    if (dimensions !== undefined) updateData.dimensions = dimensions;
+    if (roadWidth !== undefined) updateData.roadWidth = roadWidth;
+    if (sector !== undefined) updateData.sector = sector;
+    if (projectId !== undefined) updateData.projectId = projectId || null;
 
-    // 3. Size, Price and Total Price
     const newSize = sizeGaj !== undefined && sizeGaj !== "" ? parseFloat(sizeGaj) : current.sizeGaj;
     const newPrice = pricePerGaj !== undefined && pricePerGaj !== "" ? parseFloat(pricePerGaj) : current.pricePerGaj;
-    
+
     if (sizeGaj !== undefined) updateData.sizeGaj = newSize;
     if (pricePerGaj !== undefined) updateData.pricePerGaj = newPrice;
 
@@ -196,29 +324,24 @@ export async function PATCH(req: NextRequest) {
       updateData.totalPrice = newSize * newPrice;
     }
 
-    // 4. Status
     if (status) updateData.status = status;
 
-    // Update the plot record
     await prisma.plot.update({
       where: { id: current.id },
       data: updateData,
     });
 
-    // 5. Manage Sale (Sold To / Associate)
+    // Handle Sale record if marked as SOLD or customer details provided
     const effectiveStatus = status || current.status;
     const effectiveTotalPrice = updateData.totalPrice ?? current.totalPrice;
 
     if (effectiveStatus === "SOLD" || (buyerName && buyerName.trim())) {
-      // Find associate user if provided
       let finalSoldById = session?.user?.id || "";
       if (soldById) {
         const userFound = await prisma.user.findFirst({
           where: { OR: [{ id: soldById }, { memberId: soldById }] },
         });
-        if (userFound) {
-          finalSoldById = userFound.id;
-        }
+        if (userFound) finalSoldById = userFound.id;
       } else if (current.sale?.soldById) {
         finalSoldById = current.sale.soldById;
       }
@@ -247,19 +370,25 @@ export async function PATCH(req: NextRequest) {
         },
       });
     } else if (effectiveStatus === "AVAILABLE" && (!buyerName || !buyerName.trim())) {
-      // If reset to AVAILABLE and no buyer specified, remove any previous sale
       await prisma.sale.deleteMany({ where: { plotId: current.id } });
     }
 
-    // Retrieve full updated record
     const updated = await prisma.plot.findUnique({
       where: { id: current.id },
       include: {
-        sale: {
-          include: {
-            soldBy: { select: { id: true, name: true, memberId: true } },
-          },
-        },
+        project: true,
+        sale: { include: { soldBy: { select: { id: true, name: true, memberId: true } } } },
+        customer: true,
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        action: "PLOT_UPDATED",
+        entity: "Plot",
+        entityId: current.id,
+        details: `Updated plot ${updated?.plotNumber} (${updated?.status})`,
+        performedBy: session?.user?.name || "Admin",
       },
     });
 
@@ -311,10 +440,19 @@ export async function DELETE(req: NextRequest) {
     }
 
     await prisma.$transaction(async (tx) => {
-      // Delete any associated sales record for this plot
       await tx.sale.deleteMany({ where: { plotId: target.id } });
-      // Delete the plot
+      await tx.payment.deleteMany({ where: { plotId: target.id } });
+      await tx.booking.deleteMany({ where: { plotId: target.id } });
       await tx.plot.delete({ where: { id: target.id } });
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        action: "PLOT_DELETED",
+        entity: "Plot",
+        details: `Deleted plot ${target.plotNumber}`,
+        performedBy: session?.user?.name || "Admin",
+      },
     });
 
     try {

@@ -32,6 +32,12 @@ model User {
   visitors      Visitor[]
   incentives    Incentive[]
 
+  // Extended Relations for Real Estate Operations
+  assignedPlots      Plot[]       @relation("AssignedPlotAssociate")
+  assignedCustomers  Customer[]   @relation("CustomerAssociate")
+  bookings           Booking[]    @relation("BookingAssociate")
+  collectedPayments  Payment[]    @relation("PaymentCollector")
+
   // Extended Profile Details
   gender          String?   @default("Male")
   avatarUrl       String?
@@ -53,18 +59,164 @@ model User {
   nomineePhone    String?
 }
 
+model Project {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  location        String   @default("Vatika, Jaipur, Rajasthan")
+  description     String?
+  status          String   @default("ACTIVE") // ACTIVE, UPCOMING, COMPLETED
+  totalAcreage    Float?   @default(25.0)
+  totalPlotsCount Int?     @default(120)
+  imageUrl        String?
+  layoutMapUrl    String?
+  plots           Plot[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model Plot {
+  id                  String   @id @default(cuid())
+  plotNumber          String   @unique
+  projectName         String   @default("Shree Karni Vatika Township")
+  location            String   @default("Vatika, Jaipur")
+  sizeGaj             Float
+  pricePerGaj         Float
+  totalPrice          Float
+  status              String   @default("AVAILABLE") // AVAILABLE, BOOKED, SOLD, RESERVED
+  facing              String?  @default("East") // East, West, North, South, Corner, Park Facing
+  dimensions          String?  @default("30 x 45")
+  roadWidth           String?  @default("30 Ft")
+  sector              String?  @default("Block A")
+  
+  projectId           String?
+  project             Project? @relation(fields: [projectId], references: [id])
+  
+  customerId          String?
+  customer            Customer? @relation(fields: [customerId], references: [id])
+  
+  assignedAssociateId String?
+  assignedAssociate   User?    @relation("AssignedPlotAssociate", fields: [assignedAssociateId], references: [id])
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  sale                Sale?
+  bookings            Booking[]
+  payments            Payment[]
+}
+
+model Customer {
+  id                  String    @id @default(cuid())
+  customerId          String    @unique // e.g. CUST-1001
+  name                String
+  phone               String
+  email               String?
+  address             String?
+  panNumber           String?
+  aadhaarNumber       String?
+  agreementStatus     String    @default("PENDING") // PENDING, AGREEMENT_SIGNED, REGISTRY_DONE, MUTATION_DONE
+  registryDate        DateTime?
+  documentUrl         String?
+  notes               String?
+  
+  assignedAssociateId String?
+  assignedAssociate   User?     @relation("CustomerAssociate", fields: [assignedAssociateId], references: [id])
+  
+  plots               Plot[]
+  bookings            Booking[]
+  payments            Payment[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Booking {
+  id               String    @id @default(cuid())
+  bookingNumber    String    @unique // e.g. SKR-BK-2026-001
+  plotId           String
+  plot             Plot      @relation(fields: [plotId], references: [id])
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  customerName     String
+  customerPhone    String
+  customerEmail    String?
+  customerAddress  String?
+  
+  associateId      String?
+  associate        User?     @relation("BookingAssociate", fields: [associateId], references: [id])
+  
+  totalPlotAmount  Float
+  bookingAmount    Float
+  balanceAmount    Float
+  paymentMode      String    @default("UPI") // UPI, CASH, CHEQUE, BANK_TRANSFER
+  transactionRef   String?
+  status           String    @default("CONFIRMED") // PENDING_APPROVAL, CONFIRMED, CANCELLED, COMPLETED
+  agreementStatus  String    @default("PENDING") // PENDING, AGREEMENT_SIGNED, REGISTRY_DONE
+  bookingDate      DateTime  @default(now())
+  approvedAt       DateTime?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  notes            String?
+  
+  payments         Payment[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Payment {
+  id             String    @id @default(cuid())
+  receiptNumber  String    @unique // e.g. SKR-REC-2026-001
+  bookingId      String?
+  booking        Booking?  @relation(fields: [bookingId], references: [id])
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  plotId         String?
+  plot           Plot?     @relation(fields: [plotId], references: [id])
+  
+  amount         Float
+  paymentType    String    @default("BOOKING_ADVANCE") // BOOKING_ADVANCE, INSTALLMENT, REGISTRY_PAYMENT, FULL_SETTLEMENT, REFUND
+  paymentMode    String    @default("UPI") // UPI, CASH, CHEQUE, BANK_TRANSFER
+  transactionRef String?   // Cheque no, UTR, UPI Txn Id
+  bankName       String?
+  status         String    @default("SUCCESS") // SUCCESS, PENDING, FAILED, REFUNDED
+  
+  collectedById  String?
+  collectedBy    User?     @relation("PaymentCollector", fields: [collectedById], references: [id])
+  
+  receiptDate    DateTime  @default(now())
+  remarks        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model CommissionRule {
+  id              String   @id @default(cuid())
+  rank            String   @unique
+  directPercent   Float    @default(5.0)
+  teamPercent     Float    @default(2.0)
+  fixedPerGaj     Float?   @default(100.0)
+  bonusThreshold  Float?   @default(1000000.0)
+  bonusAmount     Float?   @default(25000.0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ActivityLog {
   id          String   @id @default(cuid())
-  plotNumber  String   @unique
-  projectName String   @default("Shree Karni City")
-  location    String
-  sizeGaj     Float
-  pricePerGaj Float
-  totalPrice  Float
-  status      String   @default("AVAILABLE") // AVAILABLE, SOLD, RESERVED
+  action      String   // BOOKING_CREATED, PAYMENT_COLLECTED, PROJECT_CREATED, ASSOCIATE_CREATED, COMMISSION_APPROVED, PLOT_UPDATED, etc.
+  entity      String   // Plot, Booking, Payment, User, Project, Commission
+  entityId    String?
+  details     String?
+  performedBy String   @default("Admin")
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  sale        Sale?
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   @default("INFO") // BOOKING, PAYMENT, ASSOCIATE, COMMISSION, SYSTEM
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
 }
 
 model Sale {
