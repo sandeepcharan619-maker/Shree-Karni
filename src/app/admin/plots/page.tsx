@@ -12,7 +12,7 @@ export default async function AdminPlotsPage() {
         project: { select: { id: true, name: true, location: true } },
         sale: {
           include: {
-            soldBy: { select: { name: true, memberId: true } },
+            soldBy: { select: { id: true, name: true, memberId: true } },
           },
         },
         customer: { select: { id: true, name: true, phone: true, customerId: true } },

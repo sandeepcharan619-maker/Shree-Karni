@@ -21,6 +21,7 @@ import {
   CalendarCheck,
   Building2,
   Eye,
+  Save,
 } from "lucide-react";
 
 export interface PlotData {
@@ -44,7 +45,8 @@ export interface PlotData {
     buyerName: string;
     buyerPhone: string;
     saleAmount: number;
-    soldBy?: { name: string; memberId: string } | null;
+    soldById?: string;
+    soldBy?: { id?: string; name: string; memberId: string } | null;
   } | null;
   bookings?: {
     id: string;
@@ -83,8 +85,31 @@ export default function AdminPlotsManager({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPlot, setEditingPlot] = useState<PlotData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Edit plot form state
+  const [editForm, setEditForm] = useState({
+    id: "",
+    plotNumber: "",
+    projectId: "",
+    projectName: "",
+    location: "",
+    sector: "",
+    sizeGaj: "150",
+    pricePerGaj: "11500",
+    totalPrice: "1725000",
+    status: "AVAILABLE",
+    facing: "East",
+    dimensions: "30 x 45",
+    roadWidth: "30 Ft",
+    assignedAssociateId: "",
+    buyerName: "",
+    buyerPhone: "",
+    soldById: "",
+    saleAmount: "",
+  });
 
   // Form states
   const [singleForm, setSingleForm] = useState({
@@ -249,6 +274,141 @@ export default function AdminPlotsManager({
       if (selectedPlot?.id === id) setSelectedPlot(null);
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  // Open Edit Modal for a plot
+  const handleOpenEdit = (plot: PlotData) => {
+    setEditingPlot(plot);
+    const size = plot.sizeGaj || 0;
+    const price = plot.pricePerGaj || 0;
+    const total = plot.totalPrice || size * price;
+
+    setEditForm({
+      id: plot.id,
+      plotNumber: plot.plotNumber || "",
+      projectId: plot.projectId || plot.project?.id || "",
+      projectName: plot.projectName || plot.project?.name || "Shree Karni Vatika Township",
+      location: plot.location || plot.project?.location || "Vatika, Jaipur",
+      sector: plot.sector || "Block A",
+      sizeGaj: String(size),
+      pricePerGaj: String(price),
+      totalPrice: String(total),
+      status: plot.status || "AVAILABLE",
+      facing: plot.facing || "East",
+      dimensions: plot.dimensions || "30 x 45",
+      roadWidth: plot.roadWidth || "30 Ft",
+      assignedAssociateId: plot.assignedAssociate?.id || "",
+      buyerName: plot.customer?.name || plot.sale?.buyerName || "",
+      buyerPhone: plot.customer?.phone || (plot.sale as any)?.buyerPhone || "",
+      soldById: plot.sale?.soldBy?.id || (plot.sale as any)?.soldById || "",
+      saleAmount: plot.sale?.saleAmount ? String(plot.sale.saleAmount) : String(total),
+    });
+    setError("");
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSizeChange = (val: string) => {
+    const s = parseFloat(val) || 0;
+    const p = parseFloat(editForm.pricePerGaj) || 0;
+    setEditForm((prev) => ({
+      ...prev,
+      sizeGaj: val,
+      totalPrice: String(Math.round(s * p)),
+      saleAmount: prev.status === "SOLD" ? String(Math.round(s * p)) : prev.saleAmount,
+    }));
+  };
+
+  const handleEditPriceChange = (val: string) => {
+    const p = parseFloat(val) || 0;
+    const s = parseFloat(editForm.sizeGaj) || 0;
+    setEditForm((prev) => ({
+      ...prev,
+      pricePerGaj: val,
+      totalPrice: String(Math.round(s * p)),
+      saleAmount: prev.status === "SOLD" ? String(Math.round(s * p)) : prev.saleAmount,
+    }));
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const payload: any = {
+        id: editForm.id,
+        plotNumber: editForm.plotNumber.trim().toUpperCase(),
+        projectId: editForm.projectId || null,
+        projectName: editForm.projectName.trim(),
+        location: editForm.location.trim(),
+        sector: editForm.sector.trim(),
+        sizeGaj: parseFloat(editForm.sizeGaj) || 0,
+        pricePerGaj: parseFloat(editForm.pricePerGaj) || 0,
+        totalPrice: parseFloat(editForm.totalPrice) || 0,
+        status: editForm.status,
+        facing: editForm.facing,
+        dimensions: editForm.dimensions,
+        roadWidth: editForm.roadWidth,
+        assignedAssociateId: editForm.assignedAssociateId || null,
+      };
+
+      if (editForm.status === "SOLD" || editForm.buyerName.trim()) {
+        payload.buyerName = editForm.buyerName.trim();
+        payload.buyerPhone = editForm.buyerPhone.trim();
+        payload.soldById = editForm.soldById;
+        payload.saleAmount = parseFloat(editForm.saleAmount) || payload.totalPrice;
+      } else if (editForm.status === "AVAILABLE") {
+        payload.buyerName = "";
+        payload.buyerPhone = "";
+        payload.soldById = "";
+      }
+
+      const res = await fetch("/api/admin/plots", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update plot");
+
+      const updatedPlot: PlotData = data.plot;
+
+      setPlots((prev) =>
+        prev.map((p) => (p.id === updatedPlot.id ? { ...p, ...updatedPlot } : p))
+      );
+
+      if (selectedPlot?.id === updatedPlot.id) {
+        setSelectedPlot({ ...selectedPlot, ...updatedPlot });
+      }
+
+      // Update localStorage & trigger custom event for multi-tab sync
+      try {
+        const stored = localStorage.getItem("shreekarni_custom_plots_v1");
+        if (stored) {
+          const list = JSON.parse(stored);
+          const updated = list.map((p: any) =>
+            p.id === updatedPlot.id || p.plotNumber === updatedPlot.plotNumber
+              ? { ...p, ...updatedPlot }
+              : p
+          );
+          localStorage.setItem("shreekarni_custom_plots_v1", JSON.stringify(updated));
+        }
+      } catch {}
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("skr-plot-updated", { detail: updatedPlot })
+        );
+      }
+
+      setIsEditModalOpen(false);
+      setEditingPlot(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to update plot");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -552,9 +712,21 @@ export default function AdminPlotsManager({
                     <span className="font-mono font-black text-xs tracking-tight">
                       {p.plotNumber}
                     </span>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${badgeBgClass}`}>
-                      {p.status.slice(0, 4)}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEdit(p);
+                        }}
+                        className="p-1 rounded-md text-slate-400 hover:text-amber-700 hover:bg-black/5 transition"
+                        title="Edit Plot"
+                      >
+                        <Edit2 size={11} />
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${badgeBgClass}`}>
+                        {p.status.slice(0, 4)}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="my-1.5">
@@ -649,6 +821,13 @@ export default function AdminPlotsManager({
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleOpenEdit(p)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-amber-700 hover:bg-amber-50 transition cursor-pointer"
+                          title="Edit Plot Details"
+                        >
+                          <Edit2 size={15} />
+                        </button>
                         <button
                           onClick={() => setSelectedPlot(p)}
                           className="p-1.5 rounded-lg text-slate-500 hover:text-blue-700 hover:bg-blue-50 transition cursor-pointer"
@@ -769,7 +948,14 @@ export default function AdminPlotsManager({
 
             {/* Quick Actions */}
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => handleOpenEdit(selectedPlot)}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                >
+                  <Edit2 size={13} />
+                  <span>Edit Plot</span>
+                </button>
                 <button
                   onClick={() => handleStatusChange(selectedPlot.id, "AVAILABLE")}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
@@ -1035,6 +1221,333 @@ export default function AdminPlotsManager({
                   className="px-5 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50"
                 >
                   {loading ? "Generating..." : `Generate ${bulkForm.count} Plots`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 8. EDIT PLOT MODAL                                             */}
+      {/* ============================================================== */}
+      {isEditModalOpen && editingPlot && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingPlot(null);
+              }}
+              className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">
+                <Edit2 size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900">
+                    Edit Plot: {editForm.plotNumber || editingPlot.plotNumber}
+                  </h3>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                      editForm.status === "AVAILABLE"
+                        ? "bg-emerald-500 text-white"
+                        : editForm.status === "BOOKED" || editForm.status === "RESERVED"
+                        ? "bg-amber-500 text-white"
+                        : "bg-rose-500 text-white"
+                    }`}
+                  >
+                    {editForm.status}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Update dimensions, pricing, status, project association, or buyer assignment.
+                </p>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Plot Identification & Project */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Identification & Project
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Plot Number *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.plotNumber}
+                      onChange={(e) => setEditForm({ ...editForm, plotNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 uppercase font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Sector / Block</label>
+                    <input
+                      type="text"
+                      value={editForm.sector}
+                      onChange={(e) => setEditForm({ ...editForm, sector: e.target.value })}
+                      placeholder="e.g. Block A"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Project</label>
+                    <select
+                      value={editForm.projectId}
+                      onChange={(e) => {
+                        const proj = projects.find((p) => p.id === e.target.value);
+                        setEditForm({
+                          ...editForm,
+                          projectId: e.target.value,
+                          projectName: proj ? proj.name : editForm.projectName,
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="">-- No Project Linked --</option>
+                      {projects.map((proj) => (
+                        <option key={proj.id} value={proj.id}>
+                          {proj.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Location</label>
+                    <input
+                      type="text"
+                      value={editForm.location}
+                      onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                      placeholder="e.g. Vatika, Jaipur"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sizing & Pricing */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Dimensions & Financials
+                </span>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Size (GAJ) *</label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      value={editForm.sizeGaj}
+                      onChange={(e) => handleEditSizeChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Rate / GAJ (₹) *</label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      value={editForm.pricePerGaj}
+                      onChange={(e) => handleEditPriceChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Total Price (₹)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={editForm.totalPrice}
+                      onChange={(e) => setEditForm({ ...editForm, totalPrice: e.target.value })}
+                      className="w-full px-3 py-2 border border-emerald-300 bg-emerald-50/50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-950 font-black"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Facing</label>
+                    <select
+                      value={editForm.facing}
+                      onChange={(e) => setEditForm({ ...editForm, facing: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="East">East</option>
+                      <option value="West">West</option>
+                      <option value="North">North</option>
+                      <option value="South">South</option>
+                      <option value="Corner">Corner</option>
+                      <option value="Park Facing">Park Facing</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Dimensions</label>
+                    <input
+                      type="text"
+                      placeholder="30 x 45"
+                      value={editForm.dimensions}
+                      onChange={(e) => setEditForm({ ...editForm, dimensions: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Road Width</label>
+                    <select
+                      value={editForm.roadWidth}
+                      onChange={(e) => setEditForm({ ...editForm, roadWidth: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="30 Ft">30 Ft</option>
+                      <option value="40 Ft">40 Ft</option>
+                      <option value="60 Ft">60 Ft</option>
+                      <option value="80 Ft">80 Ft</option>
+                      <option value="100 Ft">100 Ft</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Assignment */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Status & Assignment
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Inventory Status *</label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => {
+                        const newStatus = e.target.value;
+                        setEditForm((prev) => ({
+                          ...prev,
+                          status: newStatus,
+                          saleAmount:
+                            newStatus === "SOLD" && (!prev.saleAmount || prev.saleAmount === "0")
+                              ? prev.totalPrice
+                              : prev.saleAmount,
+                        }));
+                      }}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="AVAILABLE">AVAILABLE (Available for sale)</option>
+                      <option value="BOOKED">BOOKED (Advance received)</option>
+                      <option value="RESERVED">RESERVED (Hold for customer)</option>
+                      <option value="SOLD">SOLD (Full registry / sale)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Associate</label>
+                    <select
+                      value={editForm.assignedAssociateId}
+                      onChange={(e) => setEditForm({ ...editForm, assignedAssociateId: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="">-- None (Direct / Open) --</option>
+                      {associates.map((assoc) => (
+                        <option key={assoc.id} value={assoc.id}>
+                          {assoc.name} ({assoc.memberId})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Conditional Buyer Details when Sold or Booked */}
+                {(editForm.status === "SOLD" || editForm.status === "BOOKED" || editForm.status === "RESERVED" || editForm.buyerName) && (
+                  <div className="pt-2 border-t border-slate-200/60 space-y-3">
+                    <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
+                      Buyer & Sale Record
+                    </span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Buyer Name</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Rajesh Agarwal"
+                          value={editForm.buyerName}
+                          onChange={(e) => setEditForm({ ...editForm, buyerName: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Buyer Phone</label>
+                        <input
+                          type="tel"
+                          placeholder="e.g. 9876543210"
+                          value={editForm.buyerPhone}
+                          onChange={(e) => setEditForm({ ...editForm, buyerPhone: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Sold By Associate</label>
+                        <select
+                          value={editForm.soldById}
+                          onChange={(e) => setEditForm({ ...editForm, soldById: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                        >
+                          <option value="">-- Select Associate --</option>
+                          {associates.map((assoc) => (
+                            <option key={assoc.id} value={assoc.id}>
+                              {assoc.name} ({assoc.memberId})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">Sale Amount (₹)</label>
+                        <input
+                          type="number"
+                          value={editForm.saleAmount}
+                          onChange={(e) => setEditForm({ ...editForm, saleAmount: e.target.value })}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingPlot(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-md"
+                >
+                  <Save size={14} />
+                  <span>{loading ? "Saving Changes..." : "Save Plot Changes"}</span>
                 </button>
               </div>
             </form>

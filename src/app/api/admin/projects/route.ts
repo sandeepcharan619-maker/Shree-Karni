@@ -192,12 +192,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
     }
 
+    // Safely unlink any existing plots before deleting project so plots are preserved
     const plotCount = await prisma.plot.count({ where: { projectId: id } });
     if (plotCount > 0) {
-      return NextResponse.json(
-        { error: `Cannot delete project with ${plotCount} existing plots. Delete or reassign plots first.` },
-        { status: 400 }
-      );
+      await prisma.plot.updateMany({
+        where: { projectId: id },
+        data: { projectId: null },
+      });
     }
 
     const deleted = await prisma.project.delete({ where: { id } });

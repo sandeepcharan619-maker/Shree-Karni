@@ -256,6 +256,7 @@ export async function PATCH(req: NextRequest) {
       roadWidth,
       sector,
       projectId,
+      assignedAssociateId,
       buyerName,
       buyerPhone,
       soldById,
@@ -311,6 +312,7 @@ export async function PATCH(req: NextRequest) {
     if (roadWidth !== undefined) updateData.roadWidth = roadWidth;
     if (sector !== undefined) updateData.sector = sector;
     if (projectId !== undefined) updateData.projectId = projectId || null;
+    if (assignedAssociateId !== undefined) updateData.assignedAssociateId = assignedAssociateId || null;
 
     const newSize = sizeGaj !== undefined && sizeGaj !== "" ? parseFloat(sizeGaj) : current.sizeGaj;
     const newPrice = pricePerGaj !== undefined && pricePerGaj !== "" ? parseFloat(pricePerGaj) : current.pricePerGaj;
@@ -376,9 +378,23 @@ export async function PATCH(req: NextRequest) {
     const updated = await prisma.plot.findUnique({
       where: { id: current.id },
       include: {
-        project: true,
+        project: { select: { id: true, name: true, location: true } },
         sale: { include: { soldBy: { select: { id: true, name: true, memberId: true } } } },
-        customer: true,
+        customer: { select: { id: true, name: true, phone: true, customerId: true } },
+        assignedAssociate: { select: { id: true, name: true, memberId: true } },
+        bookings: {
+          select: {
+            id: true,
+            bookingNumber: true,
+            customerName: true,
+            customerPhone: true,
+            bookingAmount: true,
+            balanceAmount: true,
+            status: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
     });
 
@@ -471,3 +487,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: error?.message || "Failed to delete plot" }, { status: 500 });
   }
 }
+
+export { PATCH as PUT };
+
