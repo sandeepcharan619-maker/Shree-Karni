@@ -16,6 +16,7 @@ import {
   FileText,
   X,
   Search,
+  Sparkles,
 } from "lucide-react";
 
 interface Project {
@@ -58,6 +59,9 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
     totalPlotsCount: "120",
     imageUrl: "/website-bg.png",
     layoutMapUrl: "",
+    plotPrefix: "",
+    baseSizeGaj: "150",
+    basePricePerGaj: "11500",
   });
 
   const openAddModal = () => {
@@ -71,6 +75,9 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
       totalPlotsCount: "120",
       imageUrl: "/website-bg.png",
       layoutMapUrl: "",
+      plotPrefix: "",
+      baseSizeGaj: "150",
+      basePricePerGaj: "11500",
     });
     setError("");
     setIsModalOpen(true);
@@ -87,6 +94,9 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
       totalPlotsCount: (proj.totalPlotsCount ?? proj.plotsCount ?? 120).toString(),
       imageUrl: proj.imageUrl || "/website-bg.png",
       layoutMapUrl: proj.layoutMapUrl || "",
+      plotPrefix: "",
+      baseSizeGaj: "150",
+      basePricePerGaj: "11500",
     });
     setError("");
     setIsModalOpen(true);
@@ -401,15 +411,60 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Total Plots Count</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Number of Plots (Count) *</label>
                   <input
                     type="number"
+                    required
+                    min="1"
                     value={form.totalPlotsCount}
                     onChange={(e) => setForm({ ...form, totalPlotsCount: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
                   />
                 </div>
               </div>
+
+              {!editingProject && (
+                <div className="p-3 bg-amber-50/90 rounded-xl border border-amber-200 text-amber-950 text-xs space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
+                    <Sparkles size={14} className="text-amber-600" />
+                    <span>Automatic Plot Inventory Generation</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800">
+                    Creating this project will automatically generate <strong>{form.totalPlotsCount || 0} inventory plots</strong> and link them to this project.
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-amber-200/60 text-slate-800">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Plot Prefix</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. SKV"
+                        value={form.plotPrefix}
+                        onChange={(e) => setForm({ ...form, plotPrefix: e.target.value })}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs uppercase font-mono font-bold outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Base Size (GAJ)</label>
+                      <input
+                        type="number"
+                        value={form.baseSizeGaj}
+                        onChange={(e) => setForm({ ...form, baseSizeGaj: e.target.value })}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Rate/GAJ (₹)</label>
+                      <input
+                        type="number"
+                        value={form.basePricePerGaj}
+                        onChange={(e) => setForm({ ...form, basePricePerGaj: e.target.value })}
+                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Project Description</label>
