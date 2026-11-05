@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function GET(req: NextRequest) {
   try {
@@ -164,6 +165,13 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/payments");
+      revalidatePath("/admin/bookings");
+      revalidatePath("/admin/customers");
+    } catch {}
+
     return NextResponse.json({
       success: true,
       payment,
@@ -174,3 +182,217 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Failed to record payment" }, { status: 500 });
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const {
+      id,
+      amount,
+      paymentType,
+      paymentMode,
+      transactionRef,
+      bankName,
+      status,
+      remarks,
+      receiptDate,
+    } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Payment ID is required" }, { status: 400 });
+    }
+
+    const existingPayment = await prisma.payment.findUnique({
+      where: { id },
+      include: { booking: true },
+    });
+
+    if (!existingPayment) {
+      return NextResponse.json({ error: "Payment record not found" }, { status: 404 });
+    }
+
+    const numericAmount = amount !== undefined ? parseFloat(amount) : existingPayment.amount;
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      return NextResponse.json({ error: "Invalid payment amount" }, { status: 400 });
+    }
+
+    const updated = await prisma.payment.update({
+      where: { id },
+      data: {
+        amount: numericAmount,
+        paymentType: paymentType || existingPayment.paymentType,
+        paymentMode: paymentMode || existingPayment.paymentMode,
+        transactionRef: transactionRef !== undefined ? transactionRef : existingPayment.transactionRef,
+        bankName: bankName !== undefined ? bankName : existingPayment.bankName,
+        status: status || existingPayment.status,
+        remarks: remarks !== undefined ? remarks : existingPayment.remarks,
+        receiptDate: receiptDate ? new Date(receiptDate) : existingPayment.receiptDate,
+      },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            bookingNumber: true,
+            totalPlotAmount: true,
+            balanceAmount: true,
+            status: true,
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            customerId: true,
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        plot: {
+          select: {
+            id: true,
+            plotNumber: true,
+            projectName: true,
+            location: true,
+            sizeGaj: true,
+          },
+        },
+        collectedBy: {
+          select: {
+            id: true,
+            name: true,
+            memberId: true,
+          },
+        },
+      },
+    });
+
+    // If associated with a booking, recalculate the booking's remaining balance
+    const bookingId = existingPayment.bookingId;
+    if (bookingId) {
+      const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+      if (booking) {
+        const successfulPayments = await prisma.payment.findMany({
+          where: { bookingId, status: "SUCCESS" },
+          select: { amount: true },
+        });
+        const totalPaid = successfulPayments.reduce((sum, p) => sum + p.amount, 0);
+        const newBalance = Math.max(0, booking.totalPlotAmount - totalPaid);
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            balanceAmount: newBalance,
+            status: newBalance === 0 ? "COMPLETED" : (booking.status === "COMPLETED" ? "CONFIRMED" : booking.status),
+          },
+        });
+      }
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        action: "PAYMENT_UPDATED",
+        entity: "Payment",
+        entityId: updated.id,
+        details: `Updated payment receipt ${updated.receiptNumber}: ₹${updated.amount.toLocaleString("en-IN")} (${updated.paymentMode}, ${updated.status})`,
+        performedBy: session.user.name || "Admin",
+      },
+    });
+
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/payments");
+      revalidatePath("/admin/bookings");
+      revalidatePath("/admin/customers");
+    } catch {}
+
+    return NextResponse.json({
+      success: true,
+      payment: updated,
+      message: `Payment receipt ${updated.receiptNumber} updated successfully.`,
+    });
+  } catch (error: any) {
+    console.error("PUT /api/admin/payments error:", error);
+    return NextResponse.json({ error: error.message || "Failed to update payment" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const id = body.id || req.nextUrl.searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Payment ID is required" }, { status: 400 });
+    }
+
+    const payment = await prisma.payment.findUnique({
+      where: { id },
+      include: { booking: true },
+    });
+
+    if (!payment) {
+      return NextResponse.json({ success: true, message: "Payment already removed" });
+    }
+
+    const bookingId = payment.bookingId;
+
+    // Delete the payment record
+    await prisma.payment.delete({ where: { id } });
+
+    // If associated with a booking, adjust the booking's remaining balance
+    if (bookingId) {
+      const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+      if (booking) {
+        const remainingSuccessPayments = await prisma.payment.findMany({
+          where: { bookingId, status: "SUCCESS" },
+          select: { amount: true },
+        });
+        const totalPaid = remainingSuccessPayments.reduce((sum, p) => sum + p.amount, 0);
+        const newBalance = Math.max(0, booking.totalPlotAmount - totalPaid);
+        await prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            balanceAmount: newBalance,
+            status: newBalance === 0 ? "COMPLETED" : (booking.status === "COMPLETED" ? "CONFIRMED" : booking.status),
+          },
+        });
+      }
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        action: "PAYMENT_DELETED",
+        entity: "Payment",
+        entityId: payment.id,
+        details: `Deleted payment receipt ${payment.receiptNumber} of ₹${payment.amount.toLocaleString("en-IN")}`,
+        performedBy: session.user.name || "Admin",
+      },
+    });
+
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/payments");
+      revalidatePath("/admin/bookings");
+      revalidatePath("/admin/customers");
+    } catch {}
+
+    return NextResponse.json({
+      success: true,
+      message: `Payment receipt ${payment.receiptNumber} deleted successfully.`,
+    });
+  } catch (error: any) {
+    console.error("DELETE /api/admin/payments error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete payment" }, { status: 500 });
+  }
+}
+
+export { PUT as PATCH };

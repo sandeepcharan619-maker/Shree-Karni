@@ -17,6 +17,9 @@ import {
   Building2,
   AlertCircle,
   TrendingUp,
+  Edit2,
+  Trash2,
+  Save,
 } from "lucide-react";
 
 interface Payment {
@@ -95,6 +98,26 @@ export default function AdminPaymentsManager({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Edit Payment State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editForm, setEditForm] = useState({
+    id: "",
+    amount: "",
+    paymentType: "INSTALLMENT",
+    paymentMode: "UPI",
+    transactionRef: "",
+    bankName: "",
+    status: "SUCCESS",
+    remarks: "",
+    receiptDate: "",
+  });
+
+  // Delete Payment State
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+
   const [form, setForm] = useState({
     bookingId: bookings[0]?.id || "",
     amount: "100000",
@@ -132,6 +155,84 @@ export default function AdminPaymentsManager({
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenEdit = (p: Payment) => {
+    setEditingPayment(p);
+    setEditError("");
+    setEditForm({
+      id: p.id,
+      amount: p.amount ? p.amount.toString() : "0",
+      paymentType: p.paymentType || "INSTALLMENT",
+      paymentMode: p.paymentMode || "UPI",
+      transactionRef: p.transactionRef || "",
+      bankName: p.bankName || "",
+      status: p.status || "SUCCESS",
+      remarks: p.remarks || "",
+      receiptDate: p.receiptDate ? new Date(p.receiptDate).toISOString().split("T")[0] : "",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditLoading(true);
+    setEditError("");
+
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update payment");
+
+      // Update payments in state
+      if (data.payment) {
+        setPayments((prev) =>
+          prev.map((item) => (item.id === data.payment.id ? { ...item, ...data.payment } : item))
+        );
+      } else {
+        const fetchRes = await fetch("/api/admin/payments");
+        const fetchData = await fetchRes.json();
+        setPayments(fetchData.payments || []);
+      }
+
+      setIsEditModalOpen(false);
+      alert(data.message || "Payment updated successfully!");
+    } catch (err: any) {
+      setEditError(err.message);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const handleDeletePayment = async (p: Payment) => {
+    const confirmMsg = `Are you sure you want to permanently delete payment receipt "${p.receiptNumber}" (₹${p.amount?.toLocaleString("en-IN")})?\n\nIf linked to a booking, the remaining balance will be automatically recalculated.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setDeleteLoadingId(p.id);
+
+    try {
+      const res = await fetch(`/api/admin/payments?id=${p.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete payment");
+
+      setPayments((prev) => prev.filter((item) => item.id !== p.id));
+      if (isEditModalOpen && editingPayment?.id === p.id) {
+        setIsEditModalOpen(false);
+      }
+      alert(data.message || "Payment deleted successfully!");
+    } catch (err: any) {
+      alert(err.message || "Failed to delete payment");
+    } finally {
+      setDeleteLoadingId(null);
     }
   };
 
@@ -310,14 +411,33 @@ export default function AdminPaymentsManager({
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedReceipt(p)}
-                        className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer ml-auto"
-                        title="Print Official Payment Receipt"
-                      >
-                        <Printer size={13} />
-                        <span>Print</span>
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setSelectedReceipt(p)}
+                          className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                          title="Print Official Payment Receipt"
+                        >
+                          <Printer size={13} />
+                          <span className="hidden sm:inline">Print</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenEdit(p)}
+                          className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                          title="Edit Payment Details"
+                        >
+                          <Edit2 size={13} />
+                          <span className="hidden sm:inline">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeletePayment(p)}
+                          disabled={deleteLoadingId === p.id}
+                          className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer disabled:opacity-50"
+                          title="Delete Payment Record"
+                        >
+                          <Trash2 size={13} />
+                          <span className="hidden sm:inline">{deleteLoadingId === p.id ? "..." : "Delete"}</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -557,6 +677,192 @@ export default function AdminPaymentsManager({
                 >
                   {loading ? "Recording..." : "Record Payment & Issue Receipt"}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* EDIT PAYMENT MODAL                                             */}
+      {/* ============================================================== */}
+      {isEditModalOpen && editingPayment && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative border border-slate-200">
+            <button
+              onClick={() => setIsEditModalOpen(false)}
+              className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                <Edit2 size={16} />
+              </span>
+              <h3 className="text-lg font-black text-slate-900">
+                Edit Payment ({editingPayment.receiptNumber})
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Modify payment details, update amount, mode, or verify transaction status.
+            </p>
+
+            {/* Context Badge */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 mb-4 flex justify-between items-center">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Customer / Plot</span>
+                <span className="font-bold text-slate-900">
+                  {editingPayment.customer?.name || "Customer"}
+                </span>
+                <span className="text-slate-500 block text-[11px]">
+                  Plot: <strong className="text-blue-700">{editingPayment.plot?.plotNumber || "N/A"}</strong> ({editingPayment.plot?.projectName || "Township"})
+                </span>
+              </div>
+              {editingPayment.booking && (
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Booking</span>
+                  <span className="font-mono font-bold text-slate-800">{editingPayment.booking.bookingNumber}</span>
+                  <span className="block text-[10px] text-slate-500">
+                    Bal: ₹{editingPayment.booking.balanceAmount.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {editError && (
+              <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Payment Amount (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={editForm.amount}
+                    onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-black text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Payment Mode</label>
+                  <select
+                    value={editForm.paymentMode}
+                    onChange={(e) => setEditForm({ ...editForm, paymentMode: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  >
+                    <option value="UPI">UPI (Google Pay / PhonePe)</option>
+                    <option value="BANK_TRANSFER">Bank Transfer (NEFT/RTGS)</option>
+                    <option value="CHEQUE">Bank Cheque</option>
+                    <option value="CASH">Cash</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Payment Type</label>
+                  <select
+                    value={editForm.paymentType}
+                    onChange={(e) => setEditForm({ ...editForm, paymentType: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  >
+                    <option value="BOOKING_ADVANCE">Booking Advance</option>
+                    <option value="INSTALLMENT">Installment</option>
+                    <option value="FULL_PAYMENT">Full Payment</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  >
+                    <option value="SUCCESS">SUCCESS (Verified)</option>
+                    <option value="PENDING">PENDING</option>
+                    <option value="FAILED">FAILED</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Transaction Ref / Cheque No.</label>
+                  <input
+                    type="text"
+                    value={editForm.transactionRef}
+                    onChange={(e) => setEditForm({ ...editForm, transactionRef: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-mono"
+                    placeholder="e.g. TXN-1294829"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Bank Name</label>
+                  <input
+                    type="text"
+                    value={editForm.bankName}
+                    onChange={(e) => setEditForm({ ...editForm, bankName: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                    placeholder="e.g. SBI, HDFC"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Receipt Date</label>
+                  <input
+                    type="date"
+                    value={editForm.receiptDate}
+                    onChange={(e) => setEditForm({ ...editForm, receiptDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Remarks</label>
+                  <input
+                    type="text"
+                    value={editForm.remarks}
+                    onChange={(e) => setEditForm({ ...editForm, remarks: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                    placeholder="Notes or remarks"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2">
+                <button
+                  type="button"
+                  onClick={() => handleDeletePayment(editingPayment)}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Trash2 size={14} />
+                  <span>Delete Receipt</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    <Save size={14} />
+                    <span>{editLoading ? "Saving..." : "Save Changes"}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
