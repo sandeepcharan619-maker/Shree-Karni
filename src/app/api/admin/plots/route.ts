@@ -456,8 +456,22 @@ export async function DELETE(req: NextRequest) {
     }
 
     await prisma.$transaction(async (tx) => {
+      const plotBookings = await tx.booking.findMany({
+        where: { plotId: target.id },
+        select: { id: true },
+      });
+      const bookingIds = plotBookings.map((b) => b.id);
+
+      await tx.payment.deleteMany({
+        where: {
+          OR: [
+            { plotId: target.id },
+            ...(bookingIds.length > 0 ? [{ bookingId: { in: bookingIds } }] : []),
+          ],
+        },
+      });
+
       await tx.sale.deleteMany({ where: { plotId: target.id } });
-      await tx.payment.deleteMany({ where: { plotId: target.id } });
       await tx.booking.deleteMany({ where: { plotId: target.id } });
       await tx.plot.delete({ where: { id: target.id } });
     });

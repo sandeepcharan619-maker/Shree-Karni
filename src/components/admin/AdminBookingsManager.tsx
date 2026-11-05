@@ -19,6 +19,7 @@ import {
   Sparkles,
   Edit2,
   Save,
+  Trash2,
 } from "lucide-react";
 
 interface Booking {
@@ -226,6 +227,33 @@ export default function AdminBookingsManager({
       );
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const handleDeleteBooking = async (id: string, bookingNo: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete Booking "${bookingNo}"?\n\nThis will remove the booking and payment records, and restore the plot back to Available.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/bookings?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete booking");
+
+      setBookings((prev) => prev.filter((b) => b.id !== id));
+      if (editingBooking?.id === id) {
+        setIsEditModalOpen(false);
+        setEditingBooking(null);
+      }
+      if (selectedReceiptBooking?.id === id) {
+        setSelectedReceiptBooking(null);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to delete booking");
     }
   };
 
@@ -488,6 +516,15 @@ export default function AdminBookingsManager({
                             Cancel
                           </button>
                         )}
+
+                        <button
+                          onClick={() => handleDeleteBooking(b.id, b.bookingNumber)}
+                          className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer border border-rose-200"
+                          title="Permanently Delete Booking"
+                        >
+                          <Trash2 size={12} />
+                          <span>Delete</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1026,21 +1063,34 @@ export default function AdminBookingsManager({
                 <button
                   type="button"
                   onClick={() => {
-                    setIsEditModalOpen(false);
-                    setEditingBooking(null);
+                    if (editingBooking) handleDeleteBooking(editingBooking.id, editingBooking.bookingNumber);
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  Cancel
+                  <Trash2 size={13} />
+                  <span>Delete Booking</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-md"
-                >
-                  <Save size={14} />
-                  <span>{loading ? "Saving Changes..." : "Save Booking Changes"}</span>
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingBooking(null);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-md"
+                  >
+                    <Save size={14} />
+                    <span>{loading ? "Saving Changes..." : "Save Booking Changes"}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

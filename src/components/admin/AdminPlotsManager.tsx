@@ -957,6 +957,14 @@ export default function AdminPlotsManager({
                   <span>Edit Plot</span>
                 </button>
                 <button
+                  onClick={() => handleDeletePlot(selectedPlot.id, selectedPlot.plotNumber)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 flex items-center gap-1 transition cursor-pointer border border-rose-200"
+                  title="Delete Plot"
+                >
+                  <Trash2 size={13} />
+                  <span>Delete</span>
+                </button>
+                <button
                   onClick={() => handleStatusChange(selectedPlot.id, "AVAILABLE")}
                   className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
                 >
@@ -1534,21 +1542,38 @@ export default function AdminPlotsManager({
                 <button
                   type="button"
                   onClick={() => {
-                    setIsEditModalOpen(false);
-                    setEditingPlot(null);
+                    if (editingPlot) {
+                      handleDeletePlot(editingPlot.id, editingPlot.plotNumber);
+                      setIsEditModalOpen(false);
+                      setEditingPlot(null);
+                    }
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  Cancel
+                  <Trash2 size={13} />
+                  <span>Delete Plot</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-md"
-                >
-                  <Save size={14} />
-                  <span>{loading ? "Saving Changes..." : "Save Plot Changes"}</span>
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingPlot(null);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-md"
+                  >
+                    <Save size={14} />
+                    <span>{loading ? "Saving Changes..." : "Save Plot Changes"}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

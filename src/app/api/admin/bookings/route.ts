@@ -543,5 +543,85 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const id = body.id || req.nextUrl.searchParams.get("id");
+    const bookingNumber = body.bookingNumber || req.nextUrl.searchParams.get("bookingNumber");
+
+    if (!id && !bookingNumber) {
+      return NextResponse.json({ error: "Booking ID or Booking Number is required" }, { status: 400 });
+    }
+
+    const booking = await prisma.booking.findFirst({
+      where: {
+        OR: [
+          ...(id ? [{ id }] : []),
+          ...(bookingNumber ? [{ bookingNumber: bookingNumber.trim() }] : []),
+        ],
+      },
+      include: { plot: true },
+    });
+
+    if (!booking) {
+      return NextResponse.json({ success: true, message: "Booking already removed" });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete associated payments
+      await tx.payment.deleteMany({ where: { bookingId: booking.id } });
+
+      // 2. Release linked plot back to AVAILABLE if not sold
+      if (booking.plotId) {
+        const plot = await tx.plot.findUnique({ where: { id: booking.plotId } });
+        if (plot && plot.status !== "SOLD") {
+          await tx.plot.update({
+            where: { id: booking.plotId },
+            data: {
+              status: "AVAILABLE",
+              customerId: null,
+              assignedAssociateId: null,
+            },
+          });
+        }
+      }
+
+      // 3. Delete booking
+      await tx.booking.delete({ where: { id: booking.id } });
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        action: "BOOKING_DELETED",
+        entity: "Booking",
+        entityId: booking.id,
+        details: `Permanently deleted booking ${booking.bookingNumber} for Plot ${booking.plot?.plotNumber || "N/A"}`,
+        performedBy: session.user.name || "Admin",
+      },
+    });
+
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/bookings");
+      revalidatePath("/admin/plots");
+      revalidatePath("/dashboard/plots");
+    } catch {}
+
+    return NextResponse.json({
+      success: true,
+      message: `Booking ${booking.bookingNumber} deleted successfully.`,
+    });
+  } catch (error: any) {
+    console.error("DELETE /api/admin/bookings error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete booking" }, { status: 500 });
+  }
+}
+
 export { PATCH as PUT };
+
 
