@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { broadcastAdminEvent } from "@/lib/sse";
+import { uploadBase64ToSupabase } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,11 @@ export async function GET(req: Request) {
       return NextResponse.json({
         user: {
           ...lightUser,
+          aadhaarDocUrl: safeUser.aadhaarDocUrl?.startsWith("http") ? safeUser.aadhaarDocUrl : null,
+          panDocUrl: safeUser.panDocUrl?.startsWith("http") ? safeUser.panDocUrl : null,
+          photoDocUrl: safeUser.photoDocUrl?.startsWith("http") ? safeUser.photoDocUrl : null,
+          addressDocUrl: safeUser.addressDocUrl?.startsWith("http") ? safeUser.addressDocUrl : null,
+          bankDocUrl: safeUser.bankDocUrl?.startsWith("http") ? safeUser.bankDocUrl : null,
           hasAadhaarDoc: Boolean(aadhaarDocUrl),
           hasPanDoc: Boolean(panDocUrl),
           hasPhotoDoc: Boolean(photoDocUrl),
@@ -179,6 +185,63 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Convert any incoming Base64 documents to Supabase Storage CDN URLs
+    const userPrefix = existingUser.memberId || existingUser.id;
+
+    let finalAadhaarUrl = aadhaarDocUrl;
+    if (aadhaarDocUrl && (aadhaarDocUrl.startsWith("data:") || aadhaarDocUrl.length > 500)) {
+      try {
+        finalAadhaarUrl = await uploadBase64ToSupabase(aadhaarDocUrl, `${userPrefix}/aadhaar`);
+      } catch (err) {
+        console.error("Failed to upload aadhaar to Supabase Storage:", err);
+      }
+    }
+
+    let finalPanUrl = panDocUrl;
+    if (panDocUrl && (panDocUrl.startsWith("data:") || panDocUrl.length > 500)) {
+      try {
+        finalPanUrl = await uploadBase64ToSupabase(panDocUrl, `${userPrefix}/pan`);
+      } catch (err) {
+        console.error("Failed to upload pan to Supabase Storage:", err);
+      }
+    }
+
+    let finalPhotoUrl = photoDocUrl;
+    if (photoDocUrl && (photoDocUrl.startsWith("data:") || photoDocUrl.length > 500)) {
+      try {
+        finalPhotoUrl = await uploadBase64ToSupabase(photoDocUrl, `${userPrefix}/photo`);
+      } catch (err) {
+        console.error("Failed to upload photo to Supabase Storage:", err);
+      }
+    }
+
+    let finalAddressUrl = addressDocUrl;
+    if (addressDocUrl && (addressDocUrl.startsWith("data:") || addressDocUrl.length > 500)) {
+      try {
+        finalAddressUrl = await uploadBase64ToSupabase(addressDocUrl, `${userPrefix}/address`);
+      } catch (err) {
+        console.error("Failed to upload address to Supabase Storage:", err);
+      }
+    }
+
+    let finalBankUrl = bankDocUrl;
+    if (bankDocUrl && (bankDocUrl.startsWith("data:") || bankDocUrl.length > 500)) {
+      try {
+        finalBankUrl = await uploadBase64ToSupabase(bankDocUrl, `${userPrefix}/bank`);
+      } catch (err) {
+        console.error("Failed to upload bank to Supabase Storage:", err);
+      }
+    }
+
+    let finalAvatarUrl = avatarUrl;
+    if (avatarUrl && (avatarUrl.startsWith("data:") || avatarUrl.length > 500)) {
+      try {
+        finalAvatarUrl = await uploadBase64ToSupabase(avatarUrl, `${userPrefix}/avatar`);
+      } catch (err) {
+        console.error("Failed to upload avatar to Supabase Storage:", err);
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id: existingUser.id },
       data: {
@@ -186,7 +249,7 @@ export async function PUT(req: Request) {
         gender: gender !== undefined ? gender : undefined,
         phone: phone !== undefined ? phone?.trim() || null : undefined,
         email: email !== undefined ? email?.trim() || null : undefined,
-        avatarUrl: avatarUrl !== undefined ? avatarUrl || null : undefined,
+        avatarUrl: finalAvatarUrl !== undefined ? finalAvatarUrl || null : undefined,
         fatherName: fatherName !== undefined ? fatherName?.trim() || null : undefined,
         dob: dob !== undefined ? dob?.trim() || null : undefined,
         whatsappNumber: whatsappNumber !== undefined ? whatsappNumber?.trim() || null : undefined,
@@ -205,11 +268,11 @@ export async function PUT(req: Request) {
         bankBranch: bankBranch !== undefined ? bankBranch?.trim() || null : undefined,
         upiId: upiId !== undefined ? upiId?.trim() || null : undefined,
         bankStatus: bankStatus !== undefined ? bankStatus : undefined,
-        aadhaarDocUrl: aadhaarDocUrl !== undefined ? aadhaarDocUrl : undefined,
-        panDocUrl: panDocUrl !== undefined ? panDocUrl : undefined,
-        photoDocUrl: photoDocUrl !== undefined ? photoDocUrl : undefined,
-        addressDocUrl: addressDocUrl !== undefined ? addressDocUrl : undefined,
-        bankDocUrl: bankDocUrl !== undefined ? bankDocUrl : undefined,
+        aadhaarDocUrl: finalAadhaarUrl !== undefined ? finalAadhaarUrl : undefined,
+        panDocUrl: finalPanUrl !== undefined ? finalPanUrl : undefined,
+        photoDocUrl: finalPhotoUrl !== undefined ? finalPhotoUrl : undefined,
+        addressDocUrl: finalAddressUrl !== undefined ? finalAddressUrl : undefined,
+        bankDocUrl: finalBankUrl !== undefined ? finalBankUrl : undefined,
         aadhaarStatus: aadhaarStatus !== undefined ? aadhaarStatus : aadhaarDocUrl ? "PENDING" : undefined,
         panStatus: panStatus !== undefined ? panStatus : panDocUrl ? "PENDING" : undefined,
         photoStatus: photoStatus !== undefined ? photoStatus : photoDocUrl ? "PENDING" : undefined,
