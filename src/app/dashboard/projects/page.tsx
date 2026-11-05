@@ -29,12 +29,15 @@ export default async function AssociateProjectsPage() {
   });
 
   const projects: ProjectItem[] = rawProjects.map((proj) => {
-    const totalPlots = proj.plots.length;
-    const availablePlots = proj.plots.filter((p) => p.status === "AVAILABLE").length;
+    const soldPlots = proj.plots.filter((p) => p.status === "SOLD").length;
     const bookedPlots = proj.plots.filter(
       (p) => p.status === "BOOKED" || p.status === "RESERVED"
     ).length;
-    const soldPlots = proj.plots.filter((p) => p.status === "SOLD").length;
+    const totalPlots =
+      proj.totalPlotsCount !== null && proj.totalPlotsCount !== undefined
+        ? proj.totalPlotsCount
+        : proj.plots.length;
+    const availablePlots = Math.max(0, totalPlots - (soldPlots + bookedPlots));
     const totalInventoryValue = proj.plots.reduce((sum, p) => sum + p.totalPrice, 0);
     const soldSalesValue = proj.plots
       .filter((p) => p.status === "SOLD")
@@ -47,7 +50,7 @@ export default async function AssociateProjectsPage() {
       description: proj.description,
       status: proj.status,
       totalAcreage: proj.totalAcreage,
-      totalPlotsCount: proj.totalPlotsCount,
+      totalPlotsCount: totalPlots,
       imageUrl: proj.imageUrl,
       layoutMapUrl: proj.layoutMapUrl,
       plotsCount: totalPlots,

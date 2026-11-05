@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 // GET /api/admin/projects - Fetch all projects with plot count and sales
 export async function GET() {
@@ -26,10 +27,13 @@ export async function GET() {
     });
 
     const enriched = projects.map((proj) => {
-      const totalPlots = proj.plots.length;
-      const availablePlots = proj.plots.filter((p) => p.status === "AVAILABLE").length;
-      const bookedPlots = proj.plots.filter((p) => p.status === "BOOKED" || p.status === "RESERVED").length;
       const soldPlots = proj.plots.filter((p) => p.status === "SOLD").length;
+      const bookedPlots = proj.plots.filter((p) => p.status === "BOOKED" || p.status === "RESERVED").length;
+      const totalPlots =
+        proj.totalPlotsCount !== null && proj.totalPlotsCount !== undefined
+          ? proj.totalPlotsCount
+          : proj.plots.length;
+      const availablePlots = Math.max(0, totalPlots - (soldPlots + bookedPlots));
       const totalInventoryValue = proj.plots.reduce((sum, p) => sum + p.totalPrice, 0);
       const soldSalesValue = proj.plots
         .filter((p) => p.status === "SOLD")
@@ -37,6 +41,7 @@ export async function GET() {
 
       return {
         ...proj,
+        totalPlotsCount: totalPlots,
         plotsCount: totalPlots,
         availablePlots,
         bookedPlots,
@@ -46,7 +51,9 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ projects: enriched });
+    return NextResponse.json({ projects: enriched }, {
+      headers: { "Cache-Control": "no-store, max-age=0" }
+    });
   } catch (error: any) {
     console.error("GET /api/admin/projects error:", error);
     return NextResponse.json({ error: error.message || "Failed to fetch projects" }, { status: 500 });
@@ -73,18 +80,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Project with this name already exists" }, { status: 400 });
     }
 
+    const parsedAcreage = totalAcreage !== undefined && totalAcreage !== "" ? parseFloat(String(totalAcreage)) : 20.0;
+    const parsedPlotsCount = totalPlotsCount !== undefined && totalPlotsCount !== "" ? parseInt(String(totalPlotsCount), 10) : 100;
+
     const project = await prisma.project.create({
       data: {
-        name,
-        location: location || "Vatika, Jaipur, Rajasthan",
-        description: description || "Residential plot township in Vatika, Jaipur",
+        name: name.trim(),
+        location: location?.trim() || "Vatika, Jaipur, Rajasthan",
+        description: description?.trim() || "Residential plot township in Vatika, Jaipur",
         status: status || "ACTIVE",
-        totalAcreage: totalAcreage ? parseFloat(totalAcreage) : 20.0,
-        totalPlotsCount: totalPlotsCount ? parseInt(totalPlotsCount) : 100,
+        totalAcreage: !isNaN(parsedAcreage) ? parsedAcreage : 20.0,
+        totalPlotsCount: !isNaN(parsedPlotsCount) ? parsedPlotsCount : 100,
         imageUrl: imageUrl || "/website-bg.png",
         layoutMapUrl: layoutMapUrl || null,
       },
     });
+
+    try {
+      revalidatePath("/admin/projects");
+      revalidatePath("/dashboard/projects");
+      revalidatePath("/admin");
+      revalidatePath("/dashboard");
+    } catch {}
 
     // Log Activity
     await prisma.activityLog.create({
@@ -119,26 +136,36 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
     }
 
+    const parsedAcreage = totalAcreage !== undefined && totalAcreage !== "" ? parseFloat(String(totalAcreage)) : undefined;
+    const parsedPlotsCount = totalPlotsCount !== undefined && totalPlotsCount !== "" ? parseInt(String(totalPlotsCount), 10) : undefined;
+
     const updated = await prisma.project.update({
       where: { id },
       data: {
-        ...(name ? { name } : {}),
-        ...(location ? { location } : {}),
-        ...(description !== undefined ? { description } : {}),
+        ...(name ? { name: name.trim() } : {}),
+        ...(location ? { location: location.trim() } : {}),
+        ...(description !== undefined ? { description: description?.trim() || null } : {}),
         ...(status ? { status } : {}),
-        ...(totalAcreage !== undefined ? { totalAcreage: parseFloat(totalAcreage) } : {}),
-        ...(totalPlotsCount !== undefined ? { totalPlotsCount: parseInt(totalPlotsCount) } : {}),
+        ...(parsedAcreage !== undefined && !isNaN(parsedAcreage) ? { totalAcreage: parsedAcreage } : {}),
+        ...(parsedPlotsCount !== undefined && !isNaN(parsedPlotsCount) ? { totalPlotsCount: parsedPlotsCount } : {}),
         ...(imageUrl !== undefined ? { imageUrl } : {}),
         ...(layoutMapUrl !== undefined ? { layoutMapUrl } : {}),
       },
     });
+
+    try {
+      revalidatePath("/admin/projects");
+      revalidatePath("/dashboard/projects");
+      revalidatePath("/admin");
+      revalidatePath("/dashboard");
+    } catch {}
 
     await prisma.activityLog.create({
       data: {
         action: "PROJECT_UPDATED",
         entity: "Project",
         entityId: updated.id,
-        details: `Updated project "${updated.name}"`,
+        details: `Updated project "${updated.name}" (Total Plots: ${updated.totalPlotsCount})`,
         performedBy: session.user.name || "Admin",
       },
     });

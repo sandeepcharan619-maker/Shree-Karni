@@ -84,7 +84,7 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
       description: proj.description || "",
       status: proj.status,
       totalAcreage: proj.totalAcreage?.toString() || "25",
-      totalPlotsCount: proj.totalPlotsCount?.toString() || "120",
+      totalPlotsCount: (proj.totalPlotsCount ?? proj.plotsCount ?? 120).toString(),
       imageUrl: proj.imageUrl || "/website-bg.png",
       layoutMapUrl: proj.layoutMapUrl || "",
     });
@@ -111,8 +111,8 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save project");
 
-      // Refresh project list
-      const fetchRes = await fetch("/api/admin/projects");
+      // Refresh project list with cache-busting
+      const fetchRes = await fetch(`/api/admin/projects?_t=${Date.now()}`);
       const fetchData = await fetchRes.json();
       if (fetchData.projects) {
         setProjects(fetchData.projects);
@@ -258,7 +258,7 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-semibold uppercase">Total Plots</span>
-                  <span className="font-bold text-slate-800">{proj.plotsCount}</span>
+                  <span className="font-bold text-slate-800">{proj.totalPlotsCount || proj.plotsCount}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-emerald-600 block font-semibold uppercase">Available</span>
@@ -271,8 +271,8 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
                 <div className="flex justify-between text-[11px] font-semibold text-slate-500 mb-1">
                   <span>Sold / Booked Progress</span>
                   <span>
-                    {proj.plotsCount > 0
-                      ? Math.round(((proj.soldPlots + proj.bookedPlots) / proj.plotsCount) * 100)
+                    {(proj.totalPlotsCount || proj.plotsCount) > 0
+                      ? Math.round(((proj.soldPlots + proj.bookedPlots) / (proj.totalPlotsCount || proj.plotsCount)) * 100)
                       : 0}
                     %
                   </span>
@@ -280,14 +280,14 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
                 <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
                   <div
                     style={{
-                      width: `${proj.plotsCount > 0 ? (proj.soldPlots / proj.plotsCount) * 100 : 0}%`,
+                      width: `${(proj.totalPlotsCount || proj.plotsCount) > 0 ? (proj.soldPlots / (proj.totalPlotsCount || proj.plotsCount)) * 100 : 0}%`,
                     }}
                     className="bg-rose-500 h-full"
                     title={`Sold: ${proj.soldPlots}`}
                   />
                   <div
                     style={{
-                      width: `${proj.plotsCount > 0 ? (proj.bookedPlots / proj.plotsCount) * 100 : 0}%`,
+                      width: `${(proj.totalPlotsCount || proj.plotsCount) > 0 ? (proj.bookedPlots / (proj.totalPlotsCount || proj.plotsCount)) * 100 : 0}%`,
                     }}
                     className="bg-amber-500 h-full"
                     title={`Booked: ${proj.bookedPlots}`}
