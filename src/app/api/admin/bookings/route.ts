@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function GET(req: NextRequest) {
   try {
@@ -257,7 +258,24 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, action, agreementStatus, cancelReason } = body;
+    const {
+      id,
+      action,
+      agreementStatus,
+      cancelReason,
+      customerName,
+      customerPhone,
+      customerEmail,
+      customerAddress,
+      associateId,
+      totalPlotAmount,
+      bookingAmount,
+      balanceAmount,
+      paymentMode,
+      transactionRef,
+      status,
+      notes,
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Booking ID is required" }, { status: 400 });
@@ -281,6 +299,12 @@ export async function PATCH(req: NextRequest) {
           cancelledAt: new Date(),
           cancelReason: cancelReason || "Cancelled by Admin",
         },
+        include: {
+          plot: true,
+          customer: true,
+          associate: true,
+          payments: true,
+        },
       });
 
       // Release plot back to AVAILABLE
@@ -303,6 +327,13 @@ export async function PATCH(req: NextRequest) {
         },
       });
 
+      try {
+        revalidatePath("/admin");
+        revalidatePath("/admin/bookings");
+        revalidatePath("/admin/plots");
+        revalidatePath("/dashboard/plots");
+      } catch {}
+
       return NextResponse.json({
         success: true,
         message: `Booking ${booking.bookingNumber} cancelled and Plot ${booking.plot.plotNumber} marked as Available.`,
@@ -318,6 +349,12 @@ export async function PATCH(req: NextRequest) {
           status: "CONFIRMED",
           approvedAt: new Date(),
         },
+        include: {
+          plot: true,
+          customer: true,
+          associate: true,
+          payments: true,
+        },
       });
 
       await prisma.activityLog.create({
@@ -330,6 +367,13 @@ export async function PATCH(req: NextRequest) {
         },
       });
 
+      try {
+        revalidatePath("/admin");
+        revalidatePath("/admin/bookings");
+        revalidatePath("/admin/plots");
+        revalidatePath("/dashboard/plots");
+      } catch {}
+
       return NextResponse.json({
         success: true,
         message: `Booking ${booking.bookingNumber} approved successfully.`,
@@ -337,13 +381,51 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
-    // Action 3: Update Agreement or Registry status
-    if (agreementStatus) {
-      const updated = await prisma.booking.update({
-        where: { id },
-        data: { agreementStatus },
-      });
+    // Action 3: General Booking Edit or Agreement Status Update
+    const updateData: any = {};
 
+    if (customerName !== undefined) updateData.customerName = customerName.trim();
+    if (customerPhone !== undefined) updateData.customerPhone = customerPhone.trim();
+    if (customerEmail !== undefined) updateData.customerEmail = customerEmail ? customerEmail.trim() : null;
+    if (customerAddress !== undefined) updateData.customerAddress = customerAddress ? customerAddress.trim() : null;
+    if (associateId !== undefined) updateData.associateId = associateId || null;
+    if (paymentMode !== undefined) updateData.paymentMode = paymentMode;
+    if (transactionRef !== undefined) updateData.transactionRef = transactionRef ? transactionRef.trim() : null;
+    if (notes !== undefined) updateData.notes = notes;
+
+    const newTotal = totalPlotAmount !== undefined && totalPlotAmount !== "" ? parseFloat(totalPlotAmount) : booking.totalPlotAmount;
+    const newAdvance = bookingAmount !== undefined && bookingAmount !== "" ? parseFloat(bookingAmount) : booking.bookingAmount;
+
+    if (totalPlotAmount !== undefined) updateData.totalPlotAmount = newTotal;
+    if (bookingAmount !== undefined) updateData.bookingAmount = newAdvance;
+
+    if (balanceAmount !== undefined && balanceAmount !== "") {
+      updateData.balanceAmount = parseFloat(balanceAmount);
+    } else if (totalPlotAmount !== undefined || bookingAmount !== undefined) {
+      updateData.balanceAmount = Math.max(0, newTotal - newAdvance);
+    }
+
+    if (status) {
+      updateData.status = status;
+      if (status === "CANCELLED" && booking.status !== "CANCELLED") {
+        updateData.cancelledAt = new Date();
+        updateData.cancelReason = cancelReason || "Cancelled by Admin";
+        // Free plot back to AVAILABLE
+        await prisma.plot.update({
+          where: { id: booking.plotId },
+          data: { status: "AVAILABLE", customerId: null, assignedAssociateId: null },
+        });
+      } else if (status === "CONFIRMED" && booking.status === "CANCELLED") {
+        // Re-reserve plot
+        await prisma.plot.update({
+          where: { id: booking.plotId },
+          data: { status: "BOOKED", customerId: booking.customerId, assignedAssociateId: updateData.associateId ?? booking.associateId },
+        });
+      }
+    }
+
+    if (agreementStatus) {
+      updateData.agreementStatus = agreementStatus;
       if (booking.customerId) {
         await prisma.customer.update({
           where: { id: booking.customerId },
@@ -358,41 +440,108 @@ export async function PATCH(req: NextRequest) {
           data: { status: "SOLD" },
         });
 
-        // Also record in Sale table
         await prisma.sale.upsert({
           where: { plotId: booking.plotId },
           create: {
             plotId: booking.plotId,
-            buyerName: booking.customerName,
-            buyerPhone: booking.customerPhone,
-            buyerEmail: booking.customerEmail,
-            soldById: booking.associateId || session.user.id,
-            saleAmount: booking.totalPlotAmount,
+            buyerName: updateData.customerName || booking.customerName,
+            buyerPhone: updateData.customerPhone || booking.customerPhone,
+            buyerEmail: updateData.customerEmail || booking.customerEmail,
+            soldById: updateData.associateId || booking.associateId || session.user.id,
+            saleAmount: updateData.totalPlotAmount || booking.totalPlotAmount,
           },
           update: {
-            buyerName: booking.customerName,
-            buyerPhone: booking.customerPhone,
-            saleAmount: booking.totalPlotAmount,
+            buyerName: updateData.customerName || booking.customerName,
+            buyerPhone: updateData.customerPhone || booking.customerPhone,
+            saleAmount: updateData.totalPlotAmount || booking.totalPlotAmount,
           },
         });
       }
-
-      await prisma.activityLog.create({
-        data: {
-          action: "AGREEMENT_STATUS_UPDATED",
-          entity: "Booking",
-          entityId: id,
-          details: `Updated agreement status to ${agreementStatus} for booking ${booking.bookingNumber}`,
-          performedBy: session.user.name || "Admin",
-        },
-      });
-
-      return NextResponse.json({ success: true, booking: updated });
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    // Sync Customer master record if name/phone changed
+    if (booking.customerId && (updateData.customerName || updateData.customerPhone || updateData.customerEmail || updateData.customerAddress)) {
+      const custUpdate: any = {};
+      if (updateData.customerName) custUpdate.name = updateData.customerName;
+      if (updateData.customerPhone) custUpdate.phone = updateData.customerPhone;
+      if (updateData.customerEmail !== undefined) custUpdate.email = updateData.customerEmail;
+      if (updateData.customerAddress !== undefined) custUpdate.address = updateData.customerAddress;
+      await prisma.customer.update({
+        where: { id: booking.customerId },
+        data: custUpdate,
+      });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id },
+      data: updateData,
+      include: {
+        plot: {
+          select: {
+            id: true,
+            plotNumber: true,
+            projectName: true,
+            location: true,
+            sizeGaj: true,
+            pricePerGaj: true,
+            totalPrice: true,
+            facing: true,
+            roadWidth: true,
+            status: true,
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            customerId: true,
+            name: true,
+            phone: true,
+            email: true,
+            address: true,
+          },
+        },
+        associate: {
+          select: {
+            id: true,
+            memberId: true,
+            name: true,
+            phone: true,
+            rank: true,
+          },
+        },
+        payments: {
+          orderBy: { receiptDate: "desc" },
+        },
+      },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        action: "BOOKING_UPDATED",
+        entity: "Booking",
+        entityId: id,
+        details: `Admin updated booking ${booking.bookingNumber} (${updated.status})`,
+        performedBy: session.user.name || "Admin",
+      },
+    });
+
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/admin/bookings");
+      revalidatePath("/admin/plots");
+      revalidatePath("/dashboard/plots");
+    } catch {}
+
+    return NextResponse.json({
+      success: true,
+      message: `Booking ${booking.bookingNumber} updated successfully`,
+      booking: updated,
+    });
   } catch (error: any) {
     console.error("PATCH /api/admin/bookings error:", error);
     return NextResponse.json({ error: error.message || "Failed to update booking" }, { status: 500 });
   }
 }
+
+export { PATCH as PUT };
+

@@ -17,6 +17,8 @@ import {
   User,
   AlertCircle,
   Sparkles,
+  Edit2,
+  Save,
 } from "lucide-react";
 
 interface Booking {
@@ -93,9 +95,31 @@ export default function AdminBookingsManager({
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [selectedReceiptBooking, setSelectedReceiptBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Edit Booking Form
+  const [editForm, setEditForm] = useState({
+    id: "",
+    bookingNumber: "",
+    plotNumber: "",
+    customerName: "",
+    customerPhone: "",
+    customerEmail: "",
+    customerAddress: "",
+    associateId: "",
+    totalPlotAmount: "",
+    bookingAmount: "",
+    balanceAmount: "",
+    paymentMode: "UPI",
+    transactionRef: "",
+    status: "CONFIRMED",
+    agreementStatus: "PENDING",
+    notes: "",
+  });
 
   // New Booking Form
   const [form, setForm] = useState({
@@ -202,6 +226,79 @@ export default function AdminBookingsManager({
       );
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const handleOpenEdit = (b: Booking) => {
+    setEditingBooking(b);
+    setEditForm({
+      id: b.id,
+      bookingNumber: b.bookingNumber,
+      plotNumber: b.plot?.plotNumber || "",
+      customerName: b.customerName || b.customer?.name || "",
+      customerPhone: b.customerPhone || b.customer?.phone || "",
+      customerEmail: b.customerEmail || b.customer?.email || "",
+      customerAddress: b.customerAddress || b.customer?.address || "Vatika, Jaipur",
+      associateId: b.associate?.id || "",
+      totalPlotAmount: String(b.totalPlotAmount || 0),
+      bookingAmount: String(b.bookingAmount || 0),
+      balanceAmount: String(b.balanceAmount || 0),
+      paymentMode: b.paymentMode || "UPI",
+      transactionRef: b.transactionRef || "",
+      status: b.status || "CONFIRMED",
+      agreementStatus: b.agreementStatus || "PENDING",
+      notes: b.notes || "",
+    });
+    setError("");
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditTotalChange = (val: string) => {
+    const total = parseFloat(val) || 0;
+    const advance = parseFloat(editForm.bookingAmount) || 0;
+    setEditForm((prev) => ({
+      ...prev,
+      totalPlotAmount: val,
+      balanceAmount: String(Math.max(0, total - advance)),
+    }));
+  };
+
+  const handleEditAdvanceChange = (val: string) => {
+    const advance = parseFloat(val) || 0;
+    const total = parseFloat(editForm.totalPlotAmount) || 0;
+    setEditForm((prev) => ({
+      ...prev,
+      bookingAmount: val,
+      balanceAmount: String(Math.max(0, total - advance)),
+    }));
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/admin/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update booking");
+
+      const updated: Booking = data.booking;
+      setBookings((prev) =>
+        prev.map((b) => (b.id === updated.id ? { ...b, ...updated } : b))
+      );
+
+      setIsEditModalOpen(false);
+      setEditingBooking(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to update booking");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -356,6 +453,15 @@ export default function AdminBookingsManager({
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleOpenEdit(b)}
+                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer border border-amber-200"
+                          title="Edit Booking Details"
+                        >
+                          <Edit2 size={13} />
+                          <span>Edit</span>
+                        </button>
+
                         <button
                           onClick={() => setSelectedReceiptBooking(b)}
                           className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
@@ -678,6 +784,262 @@ export default function AdminBookingsManager({
                   className="px-5 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50"
                 >
                   {loading ? "Confirming Booking..." : "Confirm Plot Booking"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* EDIT BOOKING MODAL                                             */}
+      {/* ============================================================== */}
+      {isEditModalOpen && editingBooking && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingBooking(null);
+              }}
+              className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">
+                <Edit2 size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900">
+                    Edit Booking: {editForm.bookingNumber}
+                  </h3>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                      editForm.status === "CONFIRMED"
+                        ? "bg-emerald-500 text-white"
+                        : editForm.status === "CANCELLED"
+                        ? "bg-rose-500 text-white"
+                        : "bg-amber-500 text-white"
+                    }`}
+                  >
+                    {editForm.status}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Plot: <strong className="text-blue-900 font-mono">{editForm.plotNumber}</strong> • Modify customer details, amounts, status, or associate.
+                </p>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Customer Information */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Customer Information
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Customer Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.customerName}
+                      onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={editForm.customerPhone}
+                      onChange={(e) => setEditForm({ ...editForm, customerPhone: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={editForm.customerEmail}
+                      onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })}
+                      placeholder="e.g. client@example.com"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Customer Address</label>
+                    <input
+                      type="text"
+                      value={editForm.customerAddress}
+                      onChange={(e) => setEditForm({ ...editForm, customerAddress: e.target.value })}
+                      placeholder="e.g. Jaipur, Rajasthan"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Financials & Payment Details */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Financials & Payment
+                </span>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Total Amount (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      value={editForm.totalPlotAmount}
+                      onChange={(e) => handleEditTotalChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Advance Paid (₹) *</label>
+                    <input
+                      type="number"
+                      required
+                      value={editForm.bookingAmount}
+                      onChange={(e) => handleEditAdvanceChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-emerald-300 bg-emerald-50/50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-emerald-950 font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Balance Remaining (₹)</label>
+                    <input
+                      type="number"
+                      value={editForm.balanceAmount}
+                      onChange={(e) => setEditForm({ ...editForm, balanceAmount: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 bg-amber-50/50 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-amber-950 font-black"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Payment Mode</label>
+                    <select
+                      value={editForm.paymentMode}
+                      onChange={(e) => setEditForm({ ...editForm, paymentMode: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white font-medium"
+                    >
+                      <option value="UPI">UPI / QR Code</option>
+                      <option value="CASH">Cash</option>
+                      <option value="CHEQUE">Cheque</option>
+                      <option value="BANK_TRANSFER">Bank Transfer (NEFT / RTGS / IMPS)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Transaction Ref / Cheque No.</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. UPI-9283749281 or Cheque #102934"
+                      value={editForm.transactionRef}
+                      onChange={(e) => setEditForm({ ...editForm, transactionRef: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Associate Assignment */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Status & Allocation
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Booking Status *</label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="CONFIRMED">CONFIRMED (Active Booking)</option>
+                      <option value="PENDING_APPROVAL">PENDING APPROVAL</option>
+                      <option value="COMPLETED">COMPLETED (Fully Paid)</option>
+                      <option value="CANCELLED">CANCELLED (Release Plot)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Agreement / Registry Status</label>
+                    <select
+                      value={editForm.agreementStatus}
+                      onChange={(e) => setEditForm({ ...editForm, agreementStatus: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="PENDING">PENDING</option>
+                      <option value="AGREEMENT_SIGNED">AGREEMENT SIGNED</option>
+                      <option value="STAMP_DUTY_PAID">STAMP DUTY PAID</option>
+                      <option value="REGISTRY_DONE">REGISTRY DONE (Sold)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Associate</label>
+                    <select
+                      value={editForm.associateId}
+                      onChange={(e) => setEditForm({ ...editForm, associateId: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="">-- Direct Office Booking (No Associate) --</option>
+                      {associates.map((assoc) => (
+                        <option key={assoc.id} value={assoc.id}>
+                          {assoc.name} ({assoc.memberId})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Booking Notes / Remarks</label>
+                    <textarea
+                      rows={2}
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                      placeholder="Add any special notes or payment schedule agreements..."
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditingBooking(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-md"
+                >
+                  <Save size={14} />
+                  <span>{loading ? "Saving Changes..." : "Save Booking Changes"}</span>
                 </button>
               </div>
             </form>
