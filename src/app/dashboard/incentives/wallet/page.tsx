@@ -11,9 +11,14 @@ export default async function WalletPage() {
   const username = session?.user?.username;
   const memberId = (session?.user as any)?.memberId;
 
+  const userSelect = { id: true, memberId: true, walletBalance: true };
+
   let user = null;
   if (userId) {
-    user = await prisma.user.findUnique({ where: { id: userId } });
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: userSelect,
+    });
   }
   if (!user && (username || memberId)) {
     user = await prisma.user.findFirst({
@@ -23,6 +28,7 @@ export default async function WalletPage() {
           memberId ? { memberId } : {},
         ],
       },
+      select: userSelect,
     });
   }
 

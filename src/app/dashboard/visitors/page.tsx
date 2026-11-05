@@ -20,7 +20,10 @@ export default async function VisitorsPage() {
 
   let user = null;
   if (userId && !userId.startsWith("master-admin")) {
-    user = await prisma.user.findUnique({ where: { id: userId } });
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
   }
   if (!user && (username || memberId)) {
     user = await prisma.user.findFirst({
@@ -30,6 +33,7 @@ export default async function VisitorsPage() {
           memberId ? { memberId } : {},
         ],
       },
+      select: { id: true },
     });
   }
 
