@@ -16,92 +16,115 @@ export default async function AdminDashboard() {
     },
   };
 
-  // 1. Projects
-  const projects = await prisma.project.findMany({
-    include: {
-      plots: {
-        select: { id: true, status: true, totalPrice: true },
+  // Run all independent queries in parallel for ultra-low latency
+  const [
+    projects,
+    allPlots,
+    salesAggregate,
+    paymentsAggregate,
+    bookingsAggregate,
+    totalAssociates,
+    incentivesAggregate,
+    recentBookings,
+    recentPayments,
+    recentNotifications,
+    pendingKycCount,
+  ] = await Promise.all([
+    // 1. Projects
+    prisma.project.findMany({
+      include: {
+        plots: {
+          select: { id: true, status: true, totalPrice: true },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    }),
+
+    // 2. Plots
+    prisma.plot.findMany({
+      select: { id: true, status: true, totalPrice: true },
+    }),
+
+    // 3. Financials: Sales
+    prisma.sale.aggregate({
+      _sum: { saleAmount: true },
+    }),
+
+    // 4. Financials: Payments
+    prisma.payment.aggregate({
+      where: { status: "SUCCESS" },
+      _sum: { amount: true },
+    }),
+
+    // 5. Bookings
+    prisma.booking.aggregate({
+      where: { status: "CONFIRMED" },
+      _sum: { balanceAmount: true },
+    }),
+
+    // 6. Total Associates Count
+    prisma.user.count({ where: associateFilter }),
+
+    // 7. Incentives
+    prisma.incentive.aggregate({
+      where: { status: { in: ["APPROVED", "PAID"] } },
+      _sum: { amount: true },
+    }),
+
+    // 8. Recent Bookings
+    prisma.booking.findMany({
+      take: 8,
+      orderBy: { createdAt: "desc" },
+      include: {
+        plot: { select: { plotNumber: true, sizeGaj: true, projectName: true } },
+      },
+    }),
+
+    // 9. Recent Payments
+    prisma.payment.findMany({
+      take: 8,
+      orderBy: { receiptDate: "desc" },
+      include: {
+        customer: { select: { name: true, customerId: true } },
+        plot: { select: { plotNumber: true } },
+      },
+    }),
+
+    // 10. Recent Notifications
+    prisma.notification.findMany({
+      take: 12,
+      orderBy: { createdAt: "desc" },
+    }),
+
+    // 11. Pending KYC Count
+    prisma.user.count({
+      where: {
+        ...associateFilter,
+        kycStatus: "PENDING",
+        OR: [
+          { aadhaarDocUrl: { not: null } },
+          { panDocUrl: { not: null } },
+          { photoDocUrl: { not: null } },
+          { addressDocUrl: { not: null } },
+          { bankDocUrl: { not: null } },
+        ],
+      },
+    }),
+  ]);
 
   const totalProjects = projects.length;
-
-  // 2. Plots
-  const allPlots = await prisma.plot.findMany({
-    select: { id: true, status: true, totalPrice: true },
-  });
-
   const totalPlots = allPlots.length;
   const availablePlots = allPlots.filter((p) => p.status === "AVAILABLE").length;
   const bookedPlots = allPlots.filter((p) => p.status === "BOOKED" || p.status === "RESERVED").length;
   const soldPlots = allPlots.filter((p) => p.status === "SOLD").length;
 
-  // 3. Financials & Sales
-  const salesAggregate = await prisma.sale.aggregate({
-    _sum: { saleAmount: true },
-  });
-  const totalSalesValue = (salesAggregate._sum.saleAmount || 0) +
+  const totalSalesValue =
+    (salesAggregate._sum.saleAmount || 0) +
     allPlots.filter((p) => p.status === "BOOKED").reduce((sum, p) => sum + p.totalPrice, 0);
 
-  const paymentsAggregate = await prisma.payment.aggregate({
-    where: { status: "SUCCESS" },
-    _sum: { amount: true },
-  });
   const totalCollected = paymentsAggregate._sum.amount || 0;
-
-  const bookingsAggregate = await prisma.booking.aggregate({
-    where: { status: "CONFIRMED" },
-    _sum: { balanceAmount: true },
-  });
   const pendingPayments = bookingsAggregate._sum.balanceAmount || 0;
-
-  // 4. Associates & Commissions
-  const totalAssociates = await prisma.user.count({ where: associateFilter });
-
-  const incentivesAggregate = await prisma.incentive.aggregate({
-    where: { status: { in: ["APPROVED", "PAID"] } },
-    _sum: { amount: true },
-  });
   const totalCommission = incentivesAggregate._sum.amount || 0;
-
-  // 5. Recent Activity & Notifications
-  const recentBookings = await prisma.booking.findMany({
-    take: 8,
-    orderBy: { createdAt: "desc" },
-    include: {
-      plot: { select: { plotNumber: true, sizeGaj: true, projectName: true } },
-    },
-  });
-
-  const recentPayments = await prisma.payment.findMany({
-    take: 8,
-    orderBy: { receiptDate: "desc" },
-    include: {
-      customer: { select: { name: true, customerId: true } },
-      plot: { select: { plotNumber: true } },
-    },
-  });
-
-  const recentNotifications = await prisma.notification.findMany({
-    take: 12,
-    orderBy: { createdAt: "desc" },
-  });
-
-  const pendingKycCount = await prisma.user.count({
-    where: {
-      ...associateFilter,
-      kycStatus: "PENDING",
-      OR: [
-        { aadhaarDocUrl: { not: null } },
-        { panDocUrl: { not: null } },
-        { photoDocUrl: { not: null } },
-        { addressDocUrl: { not: null } },
-        { bankDocUrl: { not: null } },
-      ],
-    },
-  });
 
   const enrichedProjects = projects.map((proj) => ({
     ...proj,

@@ -37,16 +37,39 @@ export default async function AssociateDashboard() {
   const username = session?.user?.username;
   const memberId = (session?.user as any)?.memberId;
 
-  // 1. Fetch current signed-up associate data live from database
+  // 1. Fetch current signed-up associate data (omitting heavy document base64 strings)
+  const userSelect = {
+    id: true,
+    name: true,
+    username: true,
+    memberId: true,
+    phone: true,
+    email: true,
+    city: true,
+    state: true,
+    district: true,
+    rank: true,
+    createdAt: true,
+    avatarUrl: true,
+    customDownline: true,
+    customSalesGaj: true,
+    walletBalance: true,
+    kycStatus: true,
+    aadhaarStatus: true,
+    panStatus: true,
+    photoStatus: true,
+    addressStatus: true,
+    bankDocStatus: true,
+    _count: {
+      select: { referrals: true, sales: true },
+    },
+  };
+
   let user = null;
   if (userId) {
     user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        _count: {
-          select: { referrals: true, sales: true },
-        },
-      },
+      select: userSelect,
     });
   }
 
@@ -58,24 +81,33 @@ export default async function AssociateDashboard() {
           memberId ? { memberId } : {},
         ],
       },
-      include: {
-        _count: {
-          select: { referrals: true, sales: true },
-        },
-      },
+      select: userSelect,
     });
   }
 
   const effectiveUserId = user?.id || userId;
 
-  // 2. Fetch live direct sales for this associate
-  const selfSalesDetails = effectiveUserId
-    ? await prisma.sale.findMany({
-        where: { soldById: effectiveUserId },
-        include: { plot: true },
-        orderBy: { saleDate: "desc" },
-      })
-    : [];
+  // 2. Fetch sales, team members, and incentives in PARALLEL for ultra-fast response
+  const [selfSalesDetails, teamMembers, incentives] = await Promise.all([
+    effectiveUserId
+      ? prisma.sale.findMany({
+          where: { soldById: effectiveUserId },
+          include: { plot: true },
+          orderBy: { saleDate: "desc" },
+        })
+      : Promise.resolve([]),
+    effectiveUserId
+      ? prisma.user.findMany({
+          where: { referredById: effectiveUserId },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    effectiveUserId
+      ? prisma.incentive.findMany({
+          where: { associateId: effectiveUserId },
+        })
+      : Promise.resolve([]),
+  ]);
 
   const actualPlotsSold = selfSalesDetails.length;
   const actualSalesAmount = selfSalesDetails.reduce(
@@ -89,19 +121,8 @@ export default async function AssociateDashboard() {
   );
 
   // 3. Downline team data
-  const directTeamCount = effectiveUserId
-    ? await prisma.user.count({
-        where: { referredById: effectiveUserId },
-      })
-    : 0;
-
-  const teamMembers = effectiveUserId
-    ? await prisma.user.findMany({
-        where: { referredById: effectiveUserId },
-        select: { id: true },
-      })
-    : [];
-  const teamIds = effectiveUserId ? teamMembers.map((m) => m.id) : [];
+  const directTeamCount = teamMembers.length;
+  const teamIds = teamMembers.map((m) => m.id);
 
   const teamSalesDetails = teamIds.length > 0
     ? await prisma.sale.findMany({
@@ -116,11 +137,6 @@ export default async function AssociateDashboard() {
   );
 
   // 4. Incentives & commission data
-  const incentives = effectiveUserId
-    ? await prisma.incentive.findMany({
-        where: { associateId: effectiveUserId },
-      })
-    : [];
 
   const totalCommissionEarned = incentives.reduce(
     (sum, inc) => sum + (inc.amount || 0),

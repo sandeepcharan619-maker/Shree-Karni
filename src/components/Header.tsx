@@ -33,7 +33,7 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
       });
     }
 
-    fetch("/api/profile")
+    fetch("/api/profile?minimal=true")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.user) {

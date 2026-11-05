@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   CheckCircle2,
@@ -54,10 +54,35 @@ export default function AdminKycModal({
 }: AdminKycModalProps) {
   const [associate, setAssociate] = useState<KycAssociateData>(initialAssociate);
   const [loadingDoc, setLoadingDoc] = useState<string | null>(null);
+  const [fetchingDocs, setFetchingDocs] = useState(false);
   const [rejectingDoc, setRejectingDoc] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [previewDoc, setPreviewDoc] = useState<{ title: string; url: string } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // On demand fetch documents for this associate if not already populated
+  useEffect(() => {
+    setAssociate(initialAssociate);
+    if (
+      initialAssociate?.id &&
+      !initialAssociate.aadhaarDocUrl &&
+      !initialAssociate.panDocUrl &&
+      !initialAssociate.photoDocUrl &&
+      !initialAssociate.addressDocUrl &&
+      !initialAssociate.bankDocUrl
+    ) {
+      setFetchingDocs(true);
+      fetch(`/api/admin/associates/kyc?associateId=${initialAssociate.id}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.associate) {
+            setAssociate((prev) => ({ ...prev, ...data.associate }));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setFetchingDocs(false));
+    }
+  }, [initialAssociate?.id]);
 
   if (!isOpen) return null;
 

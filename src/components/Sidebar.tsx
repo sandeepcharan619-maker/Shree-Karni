@@ -51,7 +51,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
 
   useEffect(() => {
     const syncProfileFromDB = () => {
-      fetch("/api/profile")
+      fetch("/api/profile?minimal=true")
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data?.user) {

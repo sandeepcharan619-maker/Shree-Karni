@@ -272,7 +272,7 @@ export default function AssociateProfileSettingsView({
     };
 
     window.addEventListener("focus", syncLatestStatus);
-    const interval = setInterval(syncLatestStatus, 15000);
+    const interval = setInterval(syncLatestStatus, 30000);
     return () => {
       window.removeEventListener("focus", syncLatestStatus);
       clearInterval(interval);

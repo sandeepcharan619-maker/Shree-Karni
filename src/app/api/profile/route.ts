@@ -6,16 +6,40 @@ import { broadcastAdminEvent } from "@/lib/sse";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const url = new URL(req.url);
+    const isMinimal = url.searchParams.get("minimal") === "true";
+    const includeDocs = url.searchParams.get("includeDocs") === "true";
+
     const userId = (session.user as any).id;
     const username = (session.user as any).username;
     const memberId = (session.user as any).memberId;
+
+    if (isMinimal) {
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(userId ? [{ id: userId }] : []),
+            ...(username ? [{ username }] : []),
+            ...(memberId ? [{ memberId }] : []),
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          memberId: true,
+          avatarUrl: true,
+          role: true,
+        },
+      });
+      return NextResponse.json({ user });
+    }
 
     let user = null;
     if (userId) {
@@ -31,8 +55,8 @@ export async function GET() {
       user = await prisma.user.findFirst({
         where: {
           OR: [
-            username ? { username } : {},
-            memberId ? { memberId } : {},
+            ...(username ? [{ username }] : []),
+            ...(memberId ? [{ memberId }] : []),
           ],
         },
         include: {
@@ -47,6 +71,29 @@ export async function GET() {
 
     // Return profile without password
     const { password, ...safeUser } = user;
+
+    if (!includeDocs) {
+      const {
+        aadhaarDocUrl,
+        panDocUrl,
+        photoDocUrl,
+        addressDocUrl,
+        bankDocUrl,
+        ...lightUser
+      } = safeUser;
+
+      return NextResponse.json({
+        user: {
+          ...lightUser,
+          hasAadhaarDoc: Boolean(aadhaarDocUrl),
+          hasPanDoc: Boolean(panDocUrl),
+          hasPhotoDoc: Boolean(photoDocUrl),
+          hasAddressDoc: Boolean(addressDocUrl),
+          hasBankDoc: Boolean(bankDocUrl),
+        },
+      });
+    }
+
     return NextResponse.json({ user: safeUser });
   } catch (err: any) {
     console.error("GET profile error:", err);
