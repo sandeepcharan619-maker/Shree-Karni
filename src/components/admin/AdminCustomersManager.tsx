@@ -18,6 +18,8 @@ import {
   Receipt,
   Download,
   AlertCircle,
+  Trash2,
+  Save,
 } from "lucide-react";
 
 interface Customer {
@@ -57,6 +59,7 @@ export default function AdminCustomersManager({
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -68,6 +71,21 @@ export default function AdminCustomersManager({
     panNumber: "",
     aadhaarNumber: "",
     agreementStatus: "PENDING",
+    assignedAssociateId: "",
+    notes: "",
+  });
+
+  const [editForm, setEditForm] = useState({
+    id: "",
+    customerId: "",
+    name: "",
+    phone: "",
+    email: "",
+    address: "Vatika, Tonk Road, Jaipur",
+    panNumber: "",
+    aadhaarNumber: "",
+    agreementStatus: "PENDING",
+    registryDate: "",
     assignedAssociateId: "",
     notes: "",
   });
@@ -135,6 +153,84 @@ export default function AdminCustomersManager({
       }
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const handleOpenEdit = (c: Customer) => {
+    setEditingCustomer(c);
+    setEditForm({
+      id: c.id,
+      customerId: c.customerId,
+      name: c.name || "",
+      phone: c.phone || "",
+      email: c.email || "",
+      address: c.address || "Vatika, Tonk Road, Jaipur",
+      panNumber: c.panNumber || "",
+      aadhaarNumber: c.aadhaarNumber || "",
+      agreementStatus: c.agreementStatus || "PENDING",
+      registryDate: c.registryDate ? new Date(c.registryDate).toISOString().split("T")[0] : "",
+      assignedAssociateId: c.assignedAssociate?.id || "",
+      notes: c.notes || "",
+    });
+    setError("");
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update customer");
+
+      const updated: Customer = data.customer;
+      setCustomers((prev) =>
+        prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+      );
+
+      if (selectedCustomer?.id === updated.id) {
+        setSelectedCustomer({ ...selectedCustomer, ...updated });
+      }
+
+      setIsEditModalOpen(false);
+      setEditingCustomer(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to update customer");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string, name: string, customerId: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete customer "${name}" (${customerId})?\n\nThis will remove their customer profile, payment records, and restore any linked plots back to Available.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/customers?id=${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete customer");
+
+      setCustomers((prev) => prev.filter((c) => c.id !== id));
+      if (selectedCustomer?.id === id) setSelectedCustomer(null);
+      if (editingCustomer?.id === id) {
+        setIsEditModalOpen(false);
+        setEditingCustomer(null);
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to delete customer");
     }
   };
 
@@ -284,12 +380,30 @@ export default function AdminCustomersManager({
                       </select>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedCustomer(c)}
-                        className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-[#0d1b2a] hover:text-amber-400 text-slate-700 font-bold text-xs transition cursor-pointer"
-                      >
-                        View Profile
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleOpenEdit(c)}
+                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer border border-amber-200"
+                          title="Edit Customer"
+                        >
+                          <Edit2 size={12} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => setSelectedCustomer(c)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-[#0d1b2a] hover:text-amber-400 text-slate-700 font-bold text-[11px] transition cursor-pointer"
+                        >
+                          Profile
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCustomer(c.id, c.name, c.customerId)}
+                          className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer border border-rose-200"
+                          title="Delete Customer"
+                        >
+                          <Trash2 size={12} />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -417,6 +531,35 @@ export default function AdminCustomersManager({
                 ))}
               </div>
             </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100">
+              <button
+                onClick={() => handleDeleteCustomer(selectedCustomer.id, selectedCustomer.name, selectedCustomer.customerId)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Trash2 size={13} />
+                <span>Delete Customer</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedCustomer(null)}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    handleOpenEdit(selectedCustomer);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                >
+                  <Edit2 size={13} />
+                  <span>Edit Profile</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -528,6 +671,216 @@ export default function AdminCustomersManager({
                 >
                   {loading ? "Registering..." : "Register Customer"}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* EDIT CUSTOMER MODAL                                            */}
+      {/* ============================================================== */}
+      {isEditModalOpen && editingCustomer && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl relative my-8 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingCustomer(null);
+              }}
+              className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm">
+                <Edit2 size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-slate-900">
+                    Edit Customer: {editForm.name || editingCustomer.name}
+                  </h3>
+                  <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold">
+                    {editForm.customerId}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Update customer contact information, KYC documents, or legal status.
+                </p>
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              {/* Personal & Contact Information */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Personal & Contact Information
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={editForm.email}
+                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      placeholder="e.g. customer@example.com"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Residential Address</label>
+                    <input
+                      type="text"
+                      value={editForm.address}
+                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                      placeholder="e.g. Vatika, Tonk Road, Jaipur"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* KYC & Identification */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  KYC & Identification Numbers
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">PAN Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. ABCDE1234F"
+                      value={editForm.panNumber}
+                      onChange={(e) => setEditForm({ ...editForm, panNumber: e.target.value.toUpperCase() })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-mono uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Aadhaar Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1234 5678 9012"
+                      value={editForm.aadhaarNumber}
+                      onChange={(e) => setEditForm({ ...editForm, aadhaarNumber: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Legal & Agreement Workflow */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Agreement & Associate Assignment
+                </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Agreement Status</label>
+                    <select
+                      value={editForm.agreementStatus}
+                      onChange={(e) => setEditForm({ ...editForm, agreementStatus: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="PENDING">PENDING (Token stage)</option>
+                      <option value="AGREEMENT_SIGNED">AGREEMENT SIGNED</option>
+                      <option value="REGISTRY_DONE">REGISTRY DONE (Sale registered)</option>
+                      <option value="MUTATION_DONE">MUTATION DONE (Dakhil Kharij)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Associate</label>
+                    <select
+                      value={editForm.assignedAssociateId}
+                      onChange={(e) => setEditForm({ ...editForm, assignedAssociateId: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
+                    >
+                      <option value="">-- Direct Customer (Office) --</option>
+                      {associates.map((assoc) => (
+                        <option key={assoc.id} value={assoc.id}>
+                          {assoc.name} ({assoc.memberId})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Notes / Remarks</label>
+                  <textarea
+                    rows={2}
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                    placeholder="Customer requirements, preferred sector, or follow-up notes..."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editingCustomer) handleDeleteCustomer(editingCustomer.id, editingCustomer.name, editingCustomer.customerId);
+                  }}
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Trash2 size={13} />
+                  <span>Delete Customer</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditModalOpen(false);
+                      setEditingCustomer(null);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-md"
+                  >
+                    <Save size={14} />
+                    <span>{loading ? "Saving Changes..." : "Save Customer Changes"}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
