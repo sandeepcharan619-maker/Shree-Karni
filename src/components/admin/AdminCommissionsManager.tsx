@@ -565,15 +565,13 @@ export default function AdminCommissionsManager({
                     <tr>
                       <th className="py-3 px-4">Total Sales Range (In Square Yard / Gaj)</th>
                       <th className="py-3 px-4 text-center">Associate Commission (₹ / Sq. Yard)</th>
-                      <th className="py-3 px-4 text-center">Team Leader Override</th>
-                      <th className="py-3 px-4 text-center">Total Commission Provided</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {slabs.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-8 text-center text-slate-400">
+                        <td colSpan={3} className="py-8 text-center text-slate-400">
                           No commission slabs defined yet. Click &quot;Add Commission Slab&quot; to create one.
                         </td>
                       </tr>
@@ -585,21 +583,9 @@ export default function AdminCommissionsManager({
                             <span className="text-[11px] font-medium text-slate-400">Sq. Yard</span>
                           </td>
                           <td className="py-3.5 px-4 text-center">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
+                            <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
                               ₹ {s.associateRate?.toLocaleString("en-IN")} / Gaj
                             </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-center font-bold text-purple-700">
-                            {s.teamLeaderRate ? (
-                              <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-purple-50 text-purple-800">
-                                ₹ {s.teamLeaderRate?.toLocaleString("en-IN")} / Gaj
-                              </span>
-                            ) : (
-                              <span className="text-slate-400">-</span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-center font-bold text-slate-600">
-                            ₹ {(s.totalRate || 1500)?.toLocaleString("en-IN")} / Gaj
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
@@ -781,39 +767,18 @@ export default function AdminCommissionsManager({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Associate Rate (₹ / Sq. Yard) *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={slabForm.associateRate}
-                    onChange={(e) => setSlabForm({ ...slabForm, associateRate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-black text-sm text-emerald-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Team Leader Override (₹ / Gaj)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={slabForm.teamLeaderRate}
-                    onChange={(e) => setSlabForm({ ...slabForm, teamLeaderRate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-bold"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Total Commission Provided (₹ / Gaj)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Associate Commission Rate (₹ / Sq. Yard) *</label>
                 <input
                   type="number"
                   min="0"
-                  value={slabForm.totalRate}
-                  onChange={(e) => setSlabForm({ ...slabForm, totalRate: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-bold"
+                  required
+                  value={slabForm.associateRate}
+                  onChange={(e) => setSlabForm({ ...slabForm, associateRate: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-black text-sm text-emerald-800"
+                  placeholder="e.g. 500, 700, 1000, 1500"
                 />
+                <span className="text-[10px] text-slate-400">Commission rate per Gaj sold for this range</span>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
@@ -904,39 +869,17 @@ export default function AdminCommissionsManager({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Associate Rate (₹ / Sq. Yard) *</label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
-                    value={slabForm.associateRate}
-                    onChange={(e) => setSlabForm({ ...slabForm, associateRate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-black text-sm text-emerald-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Team Leader Override (₹ / Gaj)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={slabForm.teamLeaderRate}
-                    onChange={(e) => setSlabForm({ ...slabForm, teamLeaderRate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Total Commission Provided (₹ / Gaj)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Associate Commission Rate (₹ / Sq. Yard) *</label>
                 <input
                   type="number"
                   min="0"
-                  value={slabForm.totalRate}
-                  onChange={(e) => setSlabForm({ ...slabForm, totalRate: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  required
+                  value={slabForm.associateRate}
+                  onChange={(e) => setSlabForm({ ...slabForm, associateRate: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-black text-sm text-emerald-800"
                 />
+                <span className="text-[10px] text-slate-400">Commission rate per Gaj sold for this range</span>
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
