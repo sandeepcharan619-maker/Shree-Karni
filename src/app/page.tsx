@@ -70,17 +70,17 @@ export default async function HomePage() {
       </div>
 
       {/* 2. MAIN HEADER NAVIGATION (Clean White PropTech Style) */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="bg-[#0a1628] px-3 py-1.5 rounded-xl shadow-md border border-slate-800 hover:opacity-95 transition flex items-center justify-center">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 sm:h-28 flex items-center justify-between">
+          {/* Logo - Prominently Displayed */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="bg-[#0a1628] px-4 py-2 sm:py-2.5 rounded-2xl shadow-xl border-2 border-slate-800 hover:border-amber-400/50 transition-all flex items-center justify-center">
               <Image
                 src="/shree-karni-logo.png"
                 alt="Shree Karni Real Estate"
-                width={180}
-                height={120}
-                className="h-12 w-auto object-contain"
+                width={360}
+                height={240}
+                className="h-16 sm:h-20 w-auto object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-2xl"
                 priority
               />
             </div>
@@ -124,26 +124,65 @@ export default async function HomePage() {
         <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#059669_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            {/* Verified Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold mb-6 shadow-2xs">
-              <ShieldCheck size={15} className="text-emerald-600" />
-              <span>100% Clear Patta & Registry • JDA Approved Townships</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            {/* Left Content Column */}
+            <div className="lg:col-span-7 max-w-2xl">
+              {/* Verified Badge */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold mb-6 shadow-2xs">
+                <ShieldCheck size={15} className="text-emerald-600" />
+                <span>100% Clear Patta & Registry • JDA Approved Townships</span>
+              </div>
+
+              {/* Headline */}
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.12] text-slate-900">
+                Find Verified Registry Plots in{" "}
+                <span className="text-emerald-600">Jaipur&apos;s</span> Growth Corridors
+              </h1>
+
+              {/* Subtitle */}
+              <p className="mt-5 text-base sm:text-lg text-slate-600 leading-relaxed">
+                Gated townships with wide concrete roads, sweet water, electricity, and individual boundary pillars. High-appreciation land investment with instant registry.
+              </p>
+
+              {/* Hero Action Buttons */}
+              <HeroAuthButtons />
             </div>
 
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.12] text-slate-900">
-              Find Verified Registry Plots in{" "}
-              <span className="text-emerald-600">Jaipur&apos;s</span> Growth Corridors
-            </h1>
+            {/* Right Brand Showcase Card - Big Golden Logo */}
+            <div className="lg:col-span-5 flex justify-center lg:justify-end">
+              <div className="w-full max-w-md bg-gradient-to-br from-[#0a1628] via-[#101f38] to-[#0a1628] rounded-3xl p-7 border-2 border-amber-400/40 shadow-2xl relative overflow-hidden text-center group hover:border-amber-400/70 transition-all duration-300">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-400/15 via-transparent to-transparent pointer-events-none" />
 
-            {/* Subtitle */}
-            <p className="mt-5 text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
-              Gated townships with wide concrete roads, sweet water, electricity, and individual boundary pillars. High-appreciation land investment with instant registry.
-            </p>
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className="py-2 px-4 rounded-2xl bg-black/35 border border-white/10 w-full flex items-center justify-center shadow-inner">
+                    <Image
+                      src="/shree-karni-logo.png"
+                      alt="Shree Karni Real Estate"
+                      width={480}
+                      height={320}
+                      className="w-full h-auto max-h-48 sm:max-h-56 object-contain drop-shadow-2xl group-hover:scale-105 transition-transform duration-500"
+                      priority
+                    />
+                  </div>
 
-            {/* Hero Action Buttons */}
-            <HeroAuthButtons />
+                  <p className="text-xs sm:text-sm font-bold text-amber-300 mt-4 tracking-wide font-serif italic">
+                    &ldquo;A Trusted Foundation for Your Future&rdquo;
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-4 pt-4 border-t border-white/10 text-[10px] sm:text-[11px] font-bold text-slate-300">
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      ✓ JDA Sanctioned
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      ★ 100% Clear Registry
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      📍 Vatika, Jaipur
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Quick Metrics Counter (PropTech Cards) */}
@@ -578,13 +617,13 @@ export default async function HomePage() {
       <footer className="bg-[#0f172a] text-slate-400 py-12 border-t border-slate-800 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <div className="bg-[#0a1628] p-2.5 rounded-xl inline-block mb-3 border border-slate-800 shadow-md">
+            <div className="bg-[#0a1628] p-3 rounded-2xl inline-block mb-3 border-2 border-amber-400/30 shadow-xl">
               <Image
                 src="/shree-karni-logo.png"
                 alt="Shree Karni Real Estate"
-                width={200}
-                height={133}
-                className="h-14 w-auto object-contain"
+                width={260}
+                height={173}
+                className="h-20 w-auto object-contain drop-shadow-lg"
               />
             </div>
             <p className="mt-2 text-slate-400 leading-relaxed text-xs">
