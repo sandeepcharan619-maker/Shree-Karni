@@ -95,7 +95,7 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
 
   return (
     <header className="bg-white border-b border-gray-200 text-gray-800 h-[60px] flex items-center justify-between px-3 md:px-6 fixed top-0 left-0 right-0 z-30 shadow-sm select-none">
-      {/* Left side: Hamburger + Dashboard title */}
+      {/* Left side: Hamburger + Logo + Dashboard title */}
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
@@ -105,9 +105,26 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
           <Menu size={22} strokeWidth={2.2} />
         </button>
 
-        <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">
-          {isAdmin ? "Admin Dashboard" : "Associate Portal"}
-        </h1>
+        <Link href={isAdmin ? "/admin" : "/dashboard"} className="flex items-center gap-2.5">
+          <div className="bg-[#0a1628] px-2 py-1 rounded-lg border border-slate-800 shadow-xs flex items-center justify-center h-10 w-auto overflow-hidden">
+            <Image
+              src="/shree-karni-logo.png"
+              alt="Shree Karni Real Estate"
+              width={80}
+              height={53}
+              className="h-8 w-auto object-contain"
+              priority
+            />
+          </div>
+          <div className="hidden sm:block text-left leading-tight">
+            <h1 className="text-sm font-black text-slate-900 tracking-tight">
+              Shree Karni Real Estate
+            </h1>
+            <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+              {isAdmin ? "Admin Operations Center" : "Associate Partner Portal"}
+            </p>
+          </div>
+        </Link>
       </div>
 
       {/* Right side: Notifications + User pill + Logout */}

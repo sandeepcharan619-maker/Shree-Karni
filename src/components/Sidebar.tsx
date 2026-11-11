@@ -120,22 +120,22 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
         }`}
       >
         <div>
-          {/* Top Logo Section (4x Bigger Brand Logo) */}
-          <div className="p-4 sm:p-5 border-b border-white/10 text-center bg-black/15">
+          {/* Top Logo Section */}
+          <div className="p-4 border-b border-white/10 text-center bg-black/25">
             <Link href={isAdmin ? "/admin" : "/dashboard"} className="inline-block group w-full">
               <div className="flex flex-col items-center">
-                {/* 4x Bigger Shree Karni Real Estate Logo */}
-                <div className="w-full max-w-[220px] py-2 flex items-center justify-center">
+                {/* Official Shree Karni Real Estate Logo */}
+                <div className="w-full max-w-[210px] py-1 flex items-center justify-center">
                   <Image
-                    src="/logo.png"
+                    src="/shree-karni-logo.png"
                     alt="Shree Karni Real Estate"
-                    width={520}
-                    height={120}
-                    className="w-full h-auto max-h-20 object-contain drop-shadow-md brightness-110 group-hover:scale-105 transition-transform duration-300"
+                    width={400}
+                    height={266}
+                    className="w-full h-auto max-h-24 object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-300"
                     priority
                   />
                 </div>
-                <p className="text-[10px] text-amber-300/90 font-bold uppercase tracking-widest mt-1">
+                <p className="text-[10px] text-amber-300 font-bold uppercase tracking-widest mt-1">
                   Vatika, Jaipur • Rajasthan
                 </p>
               </div>

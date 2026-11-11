@@ -100,18 +100,23 @@ function LoginForm() {
     <div className="min-h-screen bg-[#0a1628] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/">
-            <Image
-              src="/logo.png"
-              alt="Shree Karni Real Estate"
-              width={280}
-              height={60}
-              className="mx-auto h-16 w-auto brightness-200 contrast-200"
-              priority
-            />
+        <div className="text-center mb-6">
+          <Link href="/" className="inline-block">
+            <div className="p-3.5 rounded-2xl bg-black/40 border border-amber-500/30 inline-block shadow-2xl backdrop-blur-md">
+              <Image
+                src="/shree-karni-logo.png"
+                alt="Shree Karni Real Estate"
+                width={320}
+                height={213}
+                className="mx-auto h-24 w-auto object-contain drop-shadow-xl"
+                priority
+              />
+            </div>
           </Link>
-          <p className="text-gray-400 mt-3 text-sm">Associate & Property Platform</p>
+          <p className="text-amber-300 font-bold mt-3 text-sm tracking-wide">
+            A Trusted Foundation for Your Future
+          </p>
+          <p className="text-gray-400 text-xs mt-0.5">Associate & Property Platform</p>
         </div>
 
         {/* Login Card */}

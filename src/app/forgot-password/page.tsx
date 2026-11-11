@@ -135,15 +135,17 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         {/* Brand Logo */}
         <div className="text-center mb-6">
-          <Link href="/">
-            <Image
-              src="/logo.png"
-              alt="Shree Karni Real Estate"
-              width={260}
-              height={55}
-              className="mx-auto h-14 w-auto brightness-200 contrast-200"
-              priority
-            />
+          <Link href="/" className="inline-block">
+            <div className="p-2.5 rounded-2xl bg-black/40 border border-amber-500/30 inline-block shadow-xl backdrop-blur-md">
+              <Image
+                src="/shree-karni-logo.png"
+                alt="Shree Karni Real Estate"
+                width={260}
+                height={173}
+                className="mx-auto h-18 w-auto object-contain drop-shadow-xl"
+                priority
+              />
+            </div>
           </Link>
           <p className="text-amber-400 mt-2 text-xs font-semibold tracking-wider uppercase">
             Associate Security & Recovery Portal

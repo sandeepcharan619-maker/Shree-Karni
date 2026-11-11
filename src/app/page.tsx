@@ -74,13 +74,13 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="bg-[#0a1628] p-2 rounded-lg shadow-xs hover:opacity-95 transition">
+            <div className="bg-[#0a1628] px-3 py-1.5 rounded-xl shadow-md border border-slate-800 hover:opacity-95 transition flex items-center justify-center">
               <Image
-                src="/logo.png"
+                src="/shree-karni-logo.png"
                 alt="Shree Karni Real Estate"
-                width={170}
-                height={38}
-                className="h-8 w-auto"
+                width={180}
+                height={120}
+                className="h-12 w-auto object-contain"
                 priority
               />
             </div>
@@ -578,13 +578,13 @@ export default async function HomePage() {
       <footer className="bg-[#0f172a] text-slate-400 py-12 border-t border-slate-800 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <div className="bg-[#0a1628] p-2 rounded-lg inline-block mb-3 border border-slate-800">
+            <div className="bg-[#0a1628] p-2.5 rounded-xl inline-block mb-3 border border-slate-800 shadow-md">
               <Image
-                src="/logo.png"
+                src="/shree-karni-logo.png"
                 alt="Shree Karni Real Estate"
-                width={150}
-                height={32}
-                className="h-7 w-auto"
+                width={200}
+                height={133}
+                className="h-14 w-auto object-contain"
               />
             </div>
             <p className="mt-2 text-slate-400 leading-relaxed text-xs">

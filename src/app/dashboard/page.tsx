@@ -401,11 +401,11 @@ export default async function AssociateDashboard() {
                 </div>
                 <div className="hidden sm:block">
                   <Image
-                    src="/logo.png"
+                    src="/shree-karni-logo.png"
                     alt="Shree Karni Real Estate"
-                    width={260}
-                    height={60}
-                    className="h-11 w-auto object-contain brightness-125 drop-shadow-lg"
+                    width={220}
+                    height={146}
+                    className="h-14 w-auto object-contain drop-shadow-xl"
                     priority
                   />
                 </div>

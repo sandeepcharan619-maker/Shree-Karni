@@ -135,11 +135,11 @@ export default function AdminDashboardOverview({
           <div>
             <div className="mb-3">
               <Image
-                src="/logo.png"
+                src="/shree-karni-logo.png"
                 alt="Shree Karni Real Estate"
-                width={360}
-                height={80}
-                className="h-12 w-auto object-contain brightness-125 drop-shadow-md"
+                width={300}
+                height={200}
+                className="h-16 w-auto object-contain drop-shadow-xl"
                 priority
               />
             </div>

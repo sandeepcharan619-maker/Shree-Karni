@@ -95,15 +95,17 @@ function RegisterForm() {
       <div className="w-full max-w-lg">
         {/* Logo & Header */}
         <div className="text-center mb-6">
-          <Link href="/">
-            <Image
-              src="/logo.png"
-              alt="Shree Karni Real Estate"
-              width={240}
-              height={50}
-              className="mx-auto h-12 w-auto"
-              priority
-            />
+          <Link href="/" className="inline-block">
+            <div className="p-3 rounded-2xl bg-black/40 border border-amber-500/30 inline-block shadow-2xl backdrop-blur-md">
+              <Image
+                src="/shree-karni-logo.png"
+                alt="Shree Karni Real Estate"
+                width={300}
+                height={200}
+                className="mx-auto h-20 w-auto object-contain drop-shadow-xl"
+                priority
+              />
+            </div>
           </Link>
           <h2 className="text-2xl font-bold text-white mt-4">Join as Sales Associate</h2>
           <p className="text-gray-400 text-sm mt-1">
