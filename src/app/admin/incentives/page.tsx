@@ -6,7 +6,7 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 
 export default async function AdminIncentivesPage() {
-  const [incentives, rules] = await Promise.all([
+  const [incentives, rules, slabs] = await Promise.all([
     prisma.incentive.findMany({
       include: {
         associate: {
@@ -25,6 +25,9 @@ export default async function AdminIncentivesPage() {
     prisma.commissionRule.findMany({
       orderBy: { directPercent: "asc" },
     }),
+    prisma.commissionSlab.findMany({
+      orderBy: { minSqYard: "asc" },
+    }),
   ]);
 
   const totalPaid = incentives.filter((i) => i.status === "PAID").reduce((sum, i) => sum + i.amount, 0);
@@ -35,6 +38,7 @@ export default async function AdminIncentivesPage() {
     <AdminCommissionsManager
       initialIncentives={incentives as any}
       initialRules={rules}
+      initialSlabs={slabs}
       totalPaid={totalPaid}
       totalApproved={totalApproved}
       totalPending={totalPending}

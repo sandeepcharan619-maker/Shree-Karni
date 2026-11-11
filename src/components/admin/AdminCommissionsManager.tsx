@@ -47,9 +47,20 @@ interface CommissionRule {
   bonusAmount: number | null;
 }
 
+interface CommissionSlab {
+  id: string;
+  rangeLabel: string;
+  minSqYard: number;
+  maxSqYard: number | null;
+  associateRate: number;
+  teamLeaderRate?: number | null;
+  totalRate?: number | null;
+}
+
 interface AdminCommissionsManagerProps {
   initialIncentives: Incentive[];
   initialRules: CommissionRule[];
+  initialSlabs?: CommissionSlab[];
   totalPaid: number;
   totalApproved: number;
   totalPending: number;
@@ -58,15 +69,36 @@ interface AdminCommissionsManagerProps {
 export default function AdminCommissionsManager({
   initialIncentives,
   initialRules,
+  initialSlabs = [],
   totalPaid,
   totalApproved,
   totalPending,
 }: AdminCommissionsManagerProps) {
   const [incentives, setIncentives] = useState<Incentive[]>(initialIncentives);
   const [rules, setRules] = useState<CommissionRule[]>(initialRules);
+  const [slabs, setSlabs] = useState<CommissionSlab[]>(initialSlabs);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [activeTab, setActiveTab] = useState<"queue" | "rules">("queue");
+  const [rulesSubTab, setRulesSubTab] = useState<"slabs" | "ranks">("slabs");
+
+  // Slab State
+  const [editingSlab, setEditingSlab] = useState<CommissionSlab | null>(null);
+  const [isAddSlabModalOpen, setIsAddSlabModalOpen] = useState(false);
+  const [slabLoading, setSlabLoading] = useState(false);
+  const [slabError, setSlabError] = useState("");
+  const [slabForm, setSlabForm] = useState({
+    id: "",
+    rangeLabel: "",
+    minSqYard: "0",
+    maxSqYard: "",
+    associateRate: "500",
+    teamLeaderRate: "1000",
+    totalRate: "1500",
+  });
+  const [deleteSlabLoadingId, setDeleteSlabLoadingId] = useState<string | null>(null);
+
+  // Commission Rule State
   const [editingRule, setEditingRule] = useState<CommissionRule | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -103,6 +135,78 @@ export default function AdminCommissionsManager({
       alert(`Commission marked as ${newStatus}!`);
     } catch (err: any) {
       alert(err.message);
+    }
+  };
+
+  const handleOpenEditSlab = (slab: CommissionSlab) => {
+    setEditingSlab(slab);
+    setSlabError("");
+    setSlabForm({
+      id: slab.id,
+      rangeLabel: slab.rangeLabel,
+      minSqYard: slab.minSqYard.toString(),
+      maxSqYard: slab.maxSqYard !== null && slab.maxSqYard !== undefined ? slab.maxSqYard.toString() : "",
+      associateRate: slab.associateRate.toString(),
+      teamLeaderRate: slab.teamLeaderRate ? slab.teamLeaderRate.toString() : "0",
+      totalRate: slab.totalRate ? slab.totalRate.toString() : "1500",
+    });
+  };
+
+  const handleSaveSlab = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!slabForm.rangeLabel.trim()) {
+      setSlabError("Range label is required");
+      return;
+    }
+    setSlabLoading(true);
+    setSlabError("");
+
+    try {
+      const res = await fetch("/api/admin/commissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SLAB", ...slabForm }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save commission slab");
+
+      setSlabs((prev) => {
+        const withoutOld = prev.filter((s) => s.id !== data.slab.id && s.rangeLabel !== data.slab.rangeLabel);
+        return [...withoutOld, data.slab].sort((a, b) => a.minSqYard - b.minSqYard);
+      });
+
+      setEditingSlab(null);
+      setIsAddSlabModalOpen(false);
+      alert(data.message || `Commission slab "${data.slab.rangeLabel}" saved successfully!`);
+    } catch (err: any) {
+      setSlabError(err.message);
+    } finally {
+      setSlabLoading(false);
+    }
+  };
+
+  const handleDeleteSlab = async (slab: CommissionSlab) => {
+    if (!window.confirm(`Are you sure you want to delete commission slab "${slab.rangeLabel}"?`)) {
+      return;
+    }
+
+    setDeleteSlabLoadingId(slab.id);
+    try {
+      const res = await fetch(`/api/admin/commissions?type=SLAB&id=${slab.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete slab");
+
+      setSlabs((prev) => prev.filter((s) => s.id !== slab.id));
+      if (editingSlab?.id === slab.id) setEditingSlab(null);
+      alert(data.message || `Commission slab "${slab.rangeLabel}" deleted!`);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeleteSlabLoadingId(null);
     }
   };
 
@@ -393,73 +497,477 @@ export default function AdminCommissionsManager({
 
       {/* Rules Configurator Tab */}
       {activeTab === "rules" && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">Rank-Wise Commission Matrix</h3>
-              <p className="text-xs text-slate-500">
-                Configure direct sales commission, team overrides, per-Gaj rewards, and rank achievement bonuses.
-              </p>
-            </div>
+        <div className="space-y-6">
+          {/* Sub-tab Navigation */}
+          <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl w-fit">
             <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-sm self-start sm:self-auto"
+              onClick={() => setRulesSubTab("slabs")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                rulesSubTab === "slabs"
+                  ? "bg-[#0d1b2a] text-amber-400 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
             >
-              <Plus size={15} />
-              <span>Add Commission Rule</span>
+              📊 Sales Volume Slabs (Per Sq. Yard / Gaj)
+            </button>
+            <button
+              onClick={() => setRulesSubTab("ranks")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                rulesSubTab === "ranks"
+                  ? "bg-[#0d1b2a] text-amber-400 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              🎖️ Rank-Wise % Matrix
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rules.map((r) => (
-              <div
-                key={r.id}
-                className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:border-amber-400 transition space-y-3 relative group"
-              >
-                <div className="flex items-center justify-between">
+          {/* Slabs Tab View */}
+          {rulesSubTab === "slabs" && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                    <h4 className="font-bold text-slate-900 text-sm">{r.rank}</h4>
+                    <h3 className="text-lg font-black text-slate-900">Associate Sales Volume Commission Slabs</h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Per Sq. Yard (GAJ) Rules
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setEditingRule(r)}
-                      className="p-1.5 text-slate-500 hover:text-blue-700 rounded-lg hover:bg-white transition cursor-pointer"
-                      title="Edit Commission Rule"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRule(r)}
-                      disabled={deleteLoadingId === r.id}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-white transition cursor-pointer disabled:opacity-50"
-                      title="Delete Commission Rule"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Associate commission is awarded based on total cumulative square yards sold, scaling progressively from ₹500 to ₹1,500/Gaj.
+                  </p>
                 </div>
+                <button
+                  onClick={() => {
+                    setSlabError("");
+                    setSlabForm({
+                      id: "",
+                      rangeLabel: "",
+                      minSqYard: "0",
+                      maxSqYard: "",
+                      associateRate: "500",
+                      teamLeaderRate: "1000",
+                      totalRate: "1500",
+                    });
+                    setIsAddSlabModalOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-sm self-start sm:self-auto"
+                >
+                  <Plus size={15} />
+                  <span>Add Commission Slab</span>
+                </button>
+              </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Direct Comm.</span>
-                    <span className="text-base font-black text-blue-700">{r.directPercent}%</span>
+              {/* Slabs Table */}
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#0d1b2a] text-white uppercase text-[11px] font-bold tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Total Sales Range (In Square Yard / Gaj)</th>
+                      <th className="py-3 px-4 text-center">Associate Commission (₹ / Sq. Yard)</th>
+                      <th className="py-3 px-4 text-center">Team Leader Override</th>
+                      <th className="py-3 px-4 text-center">Total Commission Provided</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {slabs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400">
+                          No commission slabs defined yet. Click &quot;Add Commission Slab&quot; to create one.
+                        </td>
+                      </tr>
+                    ) : (
+                      slabs.map((s, idx) => (
+                        <tr key={s.id} className="hover:bg-amber-50/40 transition">
+                          <td className="py-3.5 px-4 font-bold text-slate-900 text-sm">
+                            <span className="font-mono text-slate-800">{s.rangeLabel}</span>{" "}
+                            <span className="text-[11px] font-medium text-slate-400">Sq. Yard</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
+                              ₹ {s.associateRate?.toLocaleString("en-IN")} / Gaj
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center font-bold text-purple-700">
+                            {s.teamLeaderRate ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-purple-50 text-purple-800">
+                                ₹ {s.teamLeaderRate?.toLocaleString("en-IN")} / Gaj
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-center font-bold text-slate-600">
+                            ₹ {(s.totalRate || 1500)?.toLocaleString("en-IN")} / Gaj
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditSlab(s)}
+                                className="p-1.5 text-slate-500 hover:text-blue-700 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                                title="Edit Slab Rate"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSlab(s)}
+                                disabled={deleteSlabLoadingId === s.id}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition cursor-pointer disabled:opacity-50"
+                                title="Delete Slab"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footnotes Box */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+                <p className="flex items-center gap-1.5 font-medium">
+                  <span className="text-emerald-600 font-bold">✓</span> All fees and charges are inclusive of taxes.
+                </p>
+                <p className="flex items-center gap-1.5 font-medium">
+                  <span className="text-emerald-600 font-bold">✓</span> In case of non-payment, Late Payment Charges shall be levied according to company terms.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Rank Matrix Tab View */}
+          {rulesSubTab === "ranks" && (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Rank-Wise Percentage Commission Matrix</h3>
+                  <p className="text-xs text-slate-500">
+                    Configure direct sales percentage, team downline overrides, and milestone bonuses.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-sm self-start sm:self-auto"
+                >
+                  <Plus size={15} />
+                  <span>Add Commission Rule</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {rules.map((r) => (
+                  <div
+                    key={r.id}
+                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:border-amber-400 transition space-y-3 relative group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <h4 className="font-bold text-slate-900 text-sm">{r.rank}</h4>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEditingRule(r)}
+                          className="p-1.5 text-slate-500 hover:text-blue-700 rounded-lg hover:bg-white transition cursor-pointer"
+                          title="Edit Commission Rule"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRule(r)}
+                          disabled={deleteLoadingId === r.id}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-white transition cursor-pointer disabled:opacity-50"
+                          title="Delete Commission Rule"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Direct Comm.</span>
+                        <span className="text-base font-black text-blue-700">{r.directPercent}%</span>
+                      </div>
+                      <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Team Comm.</span>
+                        <span className="text-base font-black text-purple-700">{r.teamPercent}%</span>
+                      </div>
+                      <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Fixed / Gaj</span>
+                        <span className="font-bold text-slate-900">₹ {r.fixedPerGaj ?? 100}</span>
+                      </div>
+                      <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Target Bonus</span>
+                        <span className="font-bold text-emerald-700">₹ {((r.bonusAmount ?? 25000) / 1000).toFixed(0)}k</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Team Comm.</span>
-                    <span className="text-base font-black text-purple-700">{r.teamPercent}%</span>
-                  </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Fixed / Gaj</span>
-                    <span className="font-bold text-slate-900">₹ {r.fixedPerGaj ?? 100}</span>
-                  </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Target Bonus</span>
-                    <span className="font-bold text-emerald-700">₹ {((r.bonusAmount ?? 25000) / 1000).toFixed(0)}k</span>
-                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ADD COMMISSION SLAB MODAL                                      */}
+      {/* ============================================================== */}
+      {isAddSlabModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative border border-slate-200">
+            <button
+              onClick={() => setIsAddSlabModalOpen(false)}
+              className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
+                <Plus size={16} />
+              </span>
+              <h3 className="text-lg font-black text-slate-900">Add Sales Commission Slab</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Create a progressive commission slab based on square yards (Gaj) sold.
+            </p>
+
+            {slabError && (
+              <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {slabError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSlab} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Sales Range Label *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 0 - 249, 250 - 499, 10000 and Above"
+                  value={slabForm.rangeLabel}
+                  onChange={(e) => setSlabForm({ ...slabForm, rangeLabel: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Min Sq. Yard (Gaj) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={slabForm.minSqYard}
+                    onChange={(e) => setSlabForm({ ...slabForm, minSqYard: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Max Sq. Yard (Leave empty for &quot;and Above&quot;)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 249 (or empty)"
+                    value={slabForm.maxSqYard}
+                    onChange={(e) => setSlabForm({ ...slabForm, maxSqYard: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-bold"
+                  />
                 </div>
               </div>
-            ))}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Associate Rate (₹ / Sq. Yard) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={slabForm.associateRate}
+                    onChange={(e) => setSlabForm({ ...slabForm, associateRate: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-black text-sm text-emerald-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Team Leader Override (₹ / Gaj)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={slabForm.teamLeaderRate}
+                    onChange={(e) => setSlabForm({ ...slabForm, teamLeaderRate: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Total Commission Provided (₹ / Gaj)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={slabForm.totalRate}
+                  onChange={(e) => setSlabForm({ ...slabForm, totalRate: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 font-bold"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddSlabModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={slabLoading}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  <Plus size={14} />
+                  <span>{slabLoading ? "Saving..." : "Create Commission Slab"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* EDIT COMMISSION SLAB MODAL                                     */}
+      {/* ============================================================== */}
+      {editingSlab && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative border border-slate-200">
+            <button
+              onClick={() => setEditingSlab(null)}
+              className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                <Edit2 size={16} />
+              </span>
+              <h3 className="text-lg font-black text-slate-900">
+                Edit Slab: {editingSlab.rangeLabel} Sq. Yard
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">Update the associate per-Gaj rate, team leader override, or sales range.</p>
+
+            {slabError && (
+              <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {slabError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSlab} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Sales Range Label *</label>
+                <input
+                  type="text"
+                  required
+                  value={slabForm.rangeLabel}
+                  onChange={(e) => setSlabForm({ ...slabForm, rangeLabel: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Min Sq. Yard (Gaj) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={slabForm.minSqYard}
+                    onChange={(e) => setSlabForm({ ...slabForm, minSqYard: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Max Sq. Yard</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Leave empty for and above"
+                    value={slabForm.maxSqYard}
+                    onChange={(e) => setSlabForm({ ...slabForm, maxSqYard: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Associate Rate (₹ / Sq. Yard) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={slabForm.associateRate}
+                    onChange={(e) => setSlabForm({ ...slabForm, associateRate: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-black text-sm text-emerald-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Team Leader Override (₹ / Gaj)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={slabForm.teamLeaderRate}
+                    onChange={(e) => setSlabForm({ ...slabForm, teamLeaderRate: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Total Commission Provided (₹ / Gaj)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={slabForm.totalRate}
+                  onChange={(e) => setSlabForm({ ...slabForm, totalRate: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => handleDeleteSlab(editingSlab)}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Trash2 size={14} />
+                  <span>Delete Slab</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingSlab(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={slabLoading}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    <Save size={14} />
+                    <span>{slabLoading ? "Saving..." : "Save Changes"}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}

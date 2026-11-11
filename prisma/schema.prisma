@@ -222,6 +222,18 @@ model CommissionRule {
   updatedAt       DateTime @updatedAt
 }
 
+model CommissionSlab {
+  id             String   @id @default(cuid())
+  rangeLabel     String   @unique // e.g. "0 - 249", "250 - 499", "10000 and Above"
+  minSqYard      Float    @default(0)
+  maxSqYard      Float?   // null for 10000 and Above
+  associateRate  Float    // ₹ / Sq. Yard (Gaj) for Associate
+  teamLeaderRate Float?   @default(0) // ₹ / Sq. Yard for Team Leader
+  totalRate      Float?   @default(1500) // Total commission provided
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
 model ActivityLog {
   id          String   @id @default(cuid())
   action      String   // BOOKING_CREATED, PAYMENT_COLLECTED, PROJECT_CREATED, ASSOCIATE_CREATED, COMMISSION_APPROVED, PLOT_UPDATED, etc.
