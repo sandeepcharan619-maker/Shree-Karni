@@ -646,10 +646,10 @@ export default async function AssociateDashboard() {
           <div className="bg-[#0d1b2a] text-white px-5 py-3.5 flex items-center justify-between">
             <h3 className="text-sm font-bold tracking-tight">My Rank & Rewards</h3>
             <Link
-              href="/dashboard/commission-rules"
+              href="/dashboard/rank-rewards"
               className="text-xs font-semibold text-amber-300 hover:text-white flex items-center gap-1 transition"
             >
-              <span>Commission Rules</span>
+              <span>View Details</span>
               <ArrowRight size={13} />
             </Link>
           </div>

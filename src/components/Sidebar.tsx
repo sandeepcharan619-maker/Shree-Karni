@@ -83,7 +83,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
     { label: "Commission Rules", icon: Award, href: "/dashboard/commission-rules" },
     { label: "My Team", icon: Users, href: "/dashboard/team" },
     { label: "My Wallet", icon: CreditCard, href: "/dashboard/incentives/wallet" },
-    { label: "Rank & Rewards", icon: Trophy, href: "/dashboard#rank-rewards" },
+    { label: "Rank & Rewards", icon: Trophy, href: "/dashboard/rank-rewards" },
     { label: "Reports", icon: BarChart3, href: "/dashboard#reports" },
     { label: "Profile & Settings", icon: Settings, href: "/dashboard/profile" },
     { label: "Support", icon: Headphones, href: "tel:+918952821872" },
