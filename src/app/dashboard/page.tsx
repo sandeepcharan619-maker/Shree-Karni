@@ -87,8 +87,8 @@ export default async function AssociateDashboard() {
 
   const effectiveUserId = user?.id || userId;
 
-  // 2. Fetch sales, team members, and incentives in PARALLEL for ultra-fast response
-  const [selfSalesDetails, teamMembers, incentives] = await Promise.all([
+  // 2. Fetch sales, team members, incentives, and commission slabs in PARALLEL for ultra-fast response
+  const [selfSalesDetails, teamMembers, incentives, commissionSlabs] = await Promise.all([
     effectiveUserId
       ? prisma.sale.findMany({
           where: { soldById: effectiveUserId },
@@ -107,6 +107,9 @@ export default async function AssociateDashboard() {
           where: { associateId: effectiveUserId },
         })
       : Promise.resolve([]),
+    prisma.commissionSlab.findMany({
+      orderBy: { minSqYard: "asc" },
+    }),
   ]);
 
   const actualPlotsSold = selfSalesDetails.length;
@@ -159,6 +162,13 @@ export default async function AssociateDashboard() {
     user?.customSalesGaj !== null && user?.customSalesGaj !== undefined
       ? user.customSalesGaj
       : selfBusinessGaj;
+
+  const activeSlab = commissionSlabs.find((s) => {
+    if (s.maxSqYard !== null) {
+      return displaySelfBusiness >= s.minSqYard && displaySelfBusiness <= s.maxSqYard;
+    }
+    return displaySelfBusiness >= s.minSqYard;
+  }) || commissionSlabs[0];
 
   // 6. User profile details based on signed-up user
   const associateName = user?.name || session?.user?.name || "Associate";
@@ -840,6 +850,107 @@ export default async function AssociateDashboard() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* COMMISSION RULES & SALES SLABS CARD                            */}
+      {/* ============================================================== */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-[#0d1b2a] text-white px-5 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded-lg bg-amber-400 text-slate-900 font-bold">
+              <Award size={16} />
+            </span>
+            <h3 className="text-sm font-bold tracking-tight">
+              Associate Commission Rules (Per Sq. Yard / Gaj)
+            </h3>
+          </div>
+          <Link
+            href="/dashboard/commission-rules"
+            className="text-xs font-semibold text-amber-300 hover:text-white flex items-center gap-1 transition"
+          >
+            <span>Full Details & Policies</span>
+            <ArrowRight size={13} />
+          </Link>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-amber-50/70 border border-amber-200">
+            <div className="text-xs">
+              <span className="text-slate-500 block">Your Total Sales Performance:</span>
+              <span className="text-base font-black text-slate-900 font-mono">
+                {displaySelfBusiness.toLocaleString("en-IN")} Sq. Yard (Gaj)
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-600 font-medium">Your Active Slab Rate:</span>
+              <span className="px-3.5 py-1 rounded-full text-xs font-black bg-emerald-600 text-white shadow-xs">
+                ₹ {activeSlab?.associateRate?.toLocaleString("en-IN") || 500} / Gaj
+              </span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-bold text-gray-700 uppercase tracking-wider">
+                  <th className="py-2.5 px-4">Total Sales Range (In Square Yard / Gaj)</th>
+                  <th className="py-2.5 px-4 text-center">Associate Commission (₹ / Sq. Yard)</th>
+                  <th className="py-2.5 px-4 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {commissionSlabs.map((s) => {
+                  const isCurrent = s.id === activeSlab?.id;
+                  const isPast = displaySelfBusiness > (s.maxSqYard || Infinity);
+
+                  return (
+                    <tr
+                      key={s.id}
+                      className={
+                        isCurrent
+                          ? "bg-amber-50/90 font-bold border-l-4 border-amber-500"
+                          : "hover:bg-gray-50"
+                      }
+                    >
+                      <td className="py-3 px-4 font-bold text-gray-900">
+                        <span className="font-mono">{s.rangeLabel}</span>{" "}
+                        <span className="text-gray-400 font-normal text-[11px]">Sq. Yard</span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span
+                          className={`inline-flex items-center px-3.5 py-1 rounded-full text-xs font-black ${
+                            isCurrent
+                              ? "bg-emerald-600 text-white"
+                              : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                          }`}
+                        >
+                          ₹ {s.associateRate?.toLocaleString("en-IN")} / Gaj
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {isCurrent ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900">
+                            <CheckCircle2 size={11} />
+                            <span>CURRENT SLAB</span>
+                          </span>
+                        ) : isPast ? (
+                          <span className="text-[10px] font-bold text-gray-400">Achieved ✓</span>
+                        ) : (
+                          <span className="text-[10px] font-medium text-gray-400">Next Target</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-[11px] text-gray-500 italic">
+            * All fees and charges are inclusive of taxes. Commission is calculated based on cumulative square yardage sold and directly credited to your wallet balance.
+          </p>
         </div>
       </div>
 

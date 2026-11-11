@@ -80,6 +80,7 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
     { label: "Projects", icon: Building2, href: "/dashboard/projects" },
     { label: "Plot Inventory & Maps", icon: MapPin, href: "/dashboard/plots" },
     { label: "My Business", icon: Briefcase, href: "/dashboard/business" },
+    { label: "Commission Rules", icon: Award, href: "/dashboard/commission-rules" },
     { label: "My Team", icon: Users, href: "/dashboard/team" },
     { label: "My Wallet", icon: CreditCard, href: "/dashboard/incentives/wallet" },
     { label: "Rank & Rewards", icon: Trophy, href: "/dashboard#rank-rewards" },
