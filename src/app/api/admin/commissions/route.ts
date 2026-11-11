@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
 
 export async function GET() {
   try {
@@ -85,15 +86,83 @@ export async function POST(req: NextRequest) {
       data: {
         action: "COMMISSION_RULE_UPDATED",
         entity: "CommissionRule",
-        details: `Updated commission rule for rank "${rank}" (Direct: ${rule.directPercent}%, Team: ${rule.teamPercent}%)`,
+        details: `Saved commission rule for rank "${rank}" (Direct: ${rule.directPercent}%, Team: ${rule.teamPercent}%)`,
         performedBy: session.user.name || "Admin",
       },
     });
 
-    return NextResponse.json({ success: true, rule });
+    try {
+      revalidatePath("/admin/incentives");
+      revalidatePath("/dashboard/incentives");
+      revalidatePath("/admin/associates");
+    } catch {}
+
+    return NextResponse.json({
+      success: true,
+      rule,
+      message: `Commission rule for "${rank}" saved successfully.`,
+    });
   } catch (error: any) {
     console.error("POST /api/admin/commissions error:", error);
     return NextResponse.json({ error: error.message || "Failed to update rule" }, { status: 500 });
+  }
+}
+
+// DELETE: Delete a commission rule
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const id = body.id || req.nextUrl.searchParams.get("id");
+    const rank = body.rank || req.nextUrl.searchParams.get("rank");
+
+    if (!id && !rank) {
+      return NextResponse.json({ error: "Rule ID or Rank is required" }, { status: 400 });
+    }
+
+    const rule = await prisma.commissionRule.findFirst({
+      where: {
+        OR: [
+          ...(id ? [{ id }] : []),
+          ...(rank ? [{ rank }] : []),
+        ],
+      },
+    });
+
+    if (!rule) {
+      return NextResponse.json({ success: true, message: "Rule already removed" });
+    }
+
+    await prisma.commissionRule.delete({
+      where: { id: rule.id },
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        action: "COMMISSION_RULE_DELETED",
+        entity: "CommissionRule",
+        details: `Deleted commission rule for rank "${rule.rank}"`,
+        performedBy: session.user.name || "Admin",
+      },
+    });
+
+    try {
+      revalidatePath("/admin/incentives");
+      revalidatePath("/dashboard/incentives");
+      revalidatePath("/admin/associates");
+    } catch {}
+
+    return NextResponse.json({
+      success: true,
+      message: `Commission rule for "${rule.rank}" deleted successfully.`,
+    });
+  } catch (error: any) {
+    console.error("DELETE /api/admin/commissions error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete rule" }, { status: 500 });
   }
 }
 

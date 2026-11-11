@@ -15,6 +15,8 @@ import {
   CreditCard,
   Edit2,
   Check,
+  Trash2,
+  Save,
 } from "lucide-react";
 
 interface Incentive {
@@ -68,6 +70,22 @@ export default function AdminCommissionsManager({
   const [editingRule, setEditingRule] = useState<CommissionRule | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Add Commission Rule State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [addForm, setAddForm] = useState({
+    rank: "",
+    directPercent: "5.0",
+    teamPercent: "2.0",
+    fixedPerGaj: "150",
+    bonusThreshold: "1000000",
+    bonusAmount: "25000",
+  });
+
+  // Delete State
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       const res = await fetch("/api/admin/commissions", {
@@ -112,6 +130,73 @@ export default function AdminCommissionsManager({
       alert(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddRule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addForm.rank.trim()) {
+      setAddError("Please specify a rank name");
+      return;
+    }
+    setAddLoading(true);
+    setAddError("");
+
+    try {
+      const res = await fetch("/api/admin/commissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(addForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create commission rule");
+
+      setRules((prev) => {
+        const withoutSameRank = prev.filter((r) => r.rank.toLowerCase() !== data.rule.rank.toLowerCase());
+        return [...withoutSameRank, data.rule].sort((a, b) => a.directPercent - b.directPercent);
+      });
+
+      setIsAddModalOpen(false);
+      setAddForm({
+        rank: "",
+        directPercent: "5.0",
+        teamPercent: "2.0",
+        fixedPerGaj: "150",
+        bonusThreshold: "1000000",
+        bonusAmount: "25000",
+      });
+      alert(`Commission rule for "${data.rule.rank}" added successfully!`);
+    } catch (err: any) {
+      setAddError(err.message);
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  const handleDeleteRule = async (rule: CommissionRule) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the commission rule for "${rule.rank}"?`)) {
+      return;
+    }
+
+    setDeleteLoadingId(rule.id);
+    try {
+      const res = await fetch(`/api/admin/commissions?id=${rule.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete commission rule");
+
+      setRules((prev) => prev.filter((r) => r.id !== rule.id));
+      if (editingRule?.id === rule.id) {
+        setEditingRule(null);
+      }
+      alert(data.message || `Commission rule for "${rule.rank}" deleted!`);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeleteLoadingId(null);
     }
   };
 
@@ -309,47 +394,68 @@ export default function AdminCommissionsManager({
       {/* Rules Configurator Tab */}
       {activeTab === "rules" && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">Rank-Wise Commission Matrix</h3>
               <p className="text-xs text-slate-500">
-                Direct sales commission, team overrides, and rank achievement bonuses.
+                Configure direct sales commission, team overrides, per-Gaj rewards, and rank achievement bonuses.
               </p>
             </div>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-sm self-start sm:self-auto"
+            >
+              <Plus size={15} />
+              <span>Add Commission Rule</span>
+            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rules.map((r) => (
               <div
                 key={r.id}
-                className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:border-amber-400 transition space-y-3"
+                className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 hover:border-amber-400 transition space-y-3 relative group"
               >
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-slate-900 text-sm">{r.rank}</h4>
-                  <button
-                    onClick={() => setEditingRule(r)}
-                    className="p-1.5 text-slate-500 hover:text-blue-700 rounded-lg hover:bg-white transition cursor-pointer"
-                  >
-                    <Edit2 size={14} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                    <h4 className="font-bold text-slate-900 text-sm">{r.rank}</h4>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditingRule(r)}
+                      className="p-1.5 text-slate-500 hover:text-blue-700 rounded-lg hover:bg-white transition cursor-pointer"
+                      title="Edit Commission Rule"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteRule(r)}
+                      disabled={deleteLoadingId === r.id}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-white transition cursor-pointer disabled:opacity-50"
+                      title="Delete Commission Rule"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2 bg-white rounded-xl border border-slate-100 text-center">
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
                     <span className="text-[10px] text-slate-400 uppercase font-semibold block">Direct Comm.</span>
                     <span className="text-base font-black text-blue-700">{r.directPercent}%</span>
                   </div>
-                  <div className="p-2 bg-white rounded-xl border border-slate-100 text-center">
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
                     <span className="text-[10px] text-slate-400 uppercase font-semibold block">Team Comm.</span>
                     <span className="text-base font-black text-purple-700">{r.teamPercent}%</span>
                   </div>
-                  <div className="p-2 bg-white rounded-xl border border-slate-100 text-center">
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
                     <span className="text-[10px] text-slate-400 uppercase font-semibold block">Fixed / Gaj</span>
-                    <span className="font-bold text-slate-900">₹ {r.fixedPerGaj || 100}</span>
+                    <span className="font-bold text-slate-900">₹ {r.fixedPerGaj ?? 100}</span>
                   </div>
-                  <div className="p-2 bg-white rounded-xl border border-slate-100 text-center">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Bonus</span>
-                    <span className="font-bold text-emerald-700">₹ {(r.bonusAmount || 25000) / 1000}k</span>
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-100 text-center shadow-xs">
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Target Bonus</span>
+                    <span className="font-bold text-emerald-700">₹ {((r.bonusAmount ?? 25000) / 1000).toFixed(0)}k</span>
                   </div>
                 </div>
               </div>
@@ -358,10 +464,159 @@ export default function AdminCommissionsManager({
         </div>
       )}
 
-      {/* Edit Rule Modal */}
+      {/* ============================================================== */}
+      {/* ADD NEW COMMISSION RULE MODAL                                   */}
+      {/* ============================================================== */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative border border-slate-200">
+            <button
+              onClick={() => setIsAddModalOpen(false)}
+              className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                <Plus size={16} />
+              </span>
+              <h3 className="text-lg font-black text-slate-900">Add New Commission Rule</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Create a new associate rank tier with direct commission, downline override, and bonus targets.
+            </p>
+
+            {addError && (
+              <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                {addError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddRule} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Associate Rank / Designation *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Branch Manager, Zonal Head, Vice President"
+                  value={addForm.rank}
+                  onChange={(e) => setAddForm({ ...addForm, rank: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                />
+                {/* Quick suggestions */}
+                <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                  <span className="text-[10px] text-slate-400">Suggestions:</span>
+                  {["Branch Manager", "Zonal Head", "Assistant General Manager", "Vice President", "Executive Director"].map((sug) => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => setAddForm({ ...addForm, rank: sug })}
+                      className="px-2 py-0.5 rounded text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition cursor-pointer"
+                    >
+                      +{sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Direct Commission (%) *</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    required
+                    value={addForm.directPercent}
+                    onChange={(e) => setAddForm({ ...addForm, directPercent: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  />
+                  <span className="text-[10px] text-slate-400">Commission on self plot booking</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Team Commission (%) *</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    required
+                    value={addForm.teamPercent}
+                    onChange={(e) => setAddForm({ ...addForm, teamPercent: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  />
+                  <span className="text-[10px] text-slate-400">Override on team downline sales</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Fixed Incentive (₹ / Gaj)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={addForm.fixedPerGaj}
+                    onChange={(e) => setAddForm({ ...addForm, fixedPerGaj: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  />
+                  <span className="text-[10px] text-slate-400">e.g. ₹150 per Gaj sold</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Bonus Reward (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={addForm.bonusAmount}
+                    onChange={(e) => setAddForm({ ...addForm, bonusAmount: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  />
+                  <span className="text-[10px] text-slate-400">Target achievement bonus</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Bonus Milestone Threshold (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={addForm.bonusThreshold}
+                  onChange={(e) => setAddForm({ ...addForm, bonusThreshold: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                  placeholder="e.g. 1000000"
+                />
+                <span className="text-[10px] text-slate-400">Total sales volume required to trigger the bonus</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addLoading}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  <Plus size={14} />
+                  <span>{addLoading ? "Creating..." : "Create Commission Rule"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* EDIT COMMISSION RULE MODAL                                      */}
+      {/* ============================================================== */}
       {editingRule && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl relative border border-slate-200">
             <button
               onClick={() => setEditingRule(null)}
               className="absolute right-4 top-4 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
@@ -369,36 +624,47 @@ export default function AdminCommissionsManager({
               <X size={18} />
             </button>
 
-            <h3 className="text-base font-black text-slate-900 mb-1">
-              Edit Commission: {editingRule.rank}
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">Set percentage rates and per-square-yard incentives.</p>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
+                <Edit2 size={16} />
+              </span>
+              <h3 className="text-lg font-black text-slate-900">
+                Edit Commission: {editingRule.rank}
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">Set percentage rates, per-Gaj incentives, and bonus criteria.</p>
 
-            <form onSubmit={handleSaveRule} className="space-y-3">
+            <form onSubmit={handleSaveRule} className="space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Direct Commission (%)</label>
                   <input
                     type="number"
                     step="0.1"
+                    min="0"
+                    max="100"
                     value={editingRule.directPercent}
                     onChange={(e) =>
                       setEditingRule({ ...editingRule, directPercent: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
                   />
+                  <span className="text-[10px] text-slate-400">Self booking commission</span>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Team Commission (%)</label>
                   <input
                     type="number"
                     step="0.1"
+                    min="0"
+                    max="100"
                     value={editingRule.teamPercent}
                     onChange={(e) =>
                       setEditingRule({ ...editingRule, teamPercent: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
                   />
+                  <span className="text-[10px] text-slate-400">Team override commission</span>
                 </div>
               </div>
 
@@ -407,41 +673,71 @@ export default function AdminCommissionsManager({
                   <label className="block text-xs font-bold text-slate-700 mb-1">Fixed ₹ / GAJ</label>
                   <input
                     type="number"
-                    value={editingRule.fixedPerGaj || 100}
+                    min="0"
+                    value={editingRule.fixedPerGaj ?? 100}
                     onChange={(e) =>
                       setEditingRule({ ...editingRule, fixedPerGaj: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
                   />
+                  <span className="text-[10px] text-slate-400">₹ per Gaj sold</span>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Bonus Amount (₹)</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Bonus Reward (₹)</label>
                   <input
                     type="number"
-                    value={editingRule.bonusAmount || 25000}
+                    min="0"
+                    value={editingRule.bonusAmount ?? 25000}
                     onChange={(e) =>
                       setEditingRule({ ...editingRule, bonusAmount: parseFloat(e.target.value) || 0 })
                     }
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 font-bold"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
                   />
+                  <span className="text-[10px] text-slate-400">Bonus incentive</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Bonus Milestone Threshold (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editingRule.bonusThreshold ?? 1000000}
+                  onChange={(e) =>
+                    setEditingRule({ ...editingRule, bonusThreshold: parseFloat(e.target.value) || 0 })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 font-bold"
+                />
+                <span className="text-[10px] text-slate-400">Sales volume to trigger bonus</span>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setEditingRule(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  onClick={() => handleDeleteRule(editingRule)}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  Cancel
+                  <Trash2 size={14} />
+                  <span>Delete Rule</span>
                 </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 transition cursor-pointer"
-                >
-                  Save Changes
-                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingRule(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-5 py-2 rounded-xl text-xs font-bold bg-[#0d1b2a] hover:bg-slate-800 text-amber-400 flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    <Save size={14} />
+                    <span>{loading ? "Saving..." : "Save Changes"}</span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
