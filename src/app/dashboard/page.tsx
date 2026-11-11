@@ -188,9 +188,45 @@ export default async function AssociateDashboard() {
     year: "numeric",
   });
 
-  const associateRank = user?.rank || "Client Adviser";
+  // 7. Rank & Rewards measured according to Commission Rules (Per Square Yard / Gaj)
+  const slabRankTiers: {
+    range: string;
+    minSqYard: number;
+    rankName: string;
+    rate: number;
+    reward: string;
+  }[] = [
+    { range: "0 - 249", minSqYard: 0, rankName: "Client Adviser", rate: 500, reward: "Executive Welcome Kit + Associate Certificate" },
+    { range: "250 - 499", minSqYard: 250, rankName: "Senior Adviser", rate: 700, reward: "Silver Trophy + ₹25,000 Milestone Bonus" },
+    { range: "500 - 999", minSqYard: 500, rankName: "Star Associate", rate: 900, reward: "Gold Shield + Domestic Luxury Tour (Goa/Udaipur)" },
+    { range: "1000 - 1999", minSqYard: 1000, rankName: "Team Leader", rate: 1000, reward: "International Tour (Thailand/Dubai) + Leadership Pin" },
+    { range: "2000 - 3499", minSqYard: 2000, rankName: "Area Manager", rate: 1200, reward: "Royal Platinum Shield + Brand Bike / Cash Bonanza" },
+    { range: "3500 - 5999", minSqYard: 3500, rankName: "Zonal Head", rate: 1300, reward: "Diamond Club Award + Luxury Vehicle Bonus" },
+    { range: "6000 - 9999", minSqYard: 6000, rankName: "Vice President", rate: 1400, reward: "Crown Executive Trophy + Luxury Car Privilege" },
+    { range: "10000 and Above", minSqYard: 10000, rankName: "Crown Director", rate: 1500, reward: "Crown Director Hall of Fame + Real Estate Equity Partner Privilege" },
+  ];
 
-  // 7. Dynamic KPI metrics strictly from database (0 for new associates)
+  let currentTierIndex = 0;
+  for (let i = slabRankTiers.length - 1; i >= 0; i--) {
+    if (displaySelfBusiness >= slabRankTiers[i].minSqYard) {
+      currentTierIndex = i;
+      break;
+    }
+  }
+
+  const currentTier = slabRankTiers[currentTierIndex];
+  const nextTier = currentTierIndex < slabRankTiers.length - 1 ? slabRankTiers[currentTierIndex + 1] : null;
+
+  const targetGaj = nextTier ? nextTier.minSqYard : 10000;
+  const gajRemaining = nextTier ? Math.max(0, nextTier.minSqYard - displaySelfBusiness) : 0;
+  const rankProgressPercent = nextTier
+    ? Math.min(100, Math.round((displaySelfBusiness / targetGaj) * 100))
+    : 100;
+
+  const associateRank = user?.rank && user.rank !== "Client Adviser" ? user.rank : currentTier.rankName;
+  const dynamicRankTitle = associateRank;
+
+  // 8. Dynamic KPI metrics strictly from database (0 for new associates)
   const displayPlotsSold = actualPlotsSold;
   const displayTotalBusiness = `₹ ${actualSalesAmount.toLocaleString("en-IN")}`;
   const displayCommission = `₹ ${totalCommissionEarned.toLocaleString("en-IN")}`;
@@ -198,7 +234,7 @@ export default async function AssociateDashboard() {
   const displayTeamMembersCount = displayDownline;
   const displayTeamBusiness = `₹ ${totalTeamBusinessAmount.toLocaleString("en-IN")}`;
 
-  // 8. Dynamic monthly sales aggregation for the last 6 months
+  // 9. Dynamic monthly sales aggregation for the last 6 months
   const now = new Date();
   const monthsData = [];
   for (let i = 5; i >= 0; i--) {
@@ -225,41 +261,6 @@ export default async function AssociateDashboard() {
   }
 
   const maxMonthAmount = Math.max(...monthsData.map((m) => m.amount), 1000000);
-
-  // 9. Dynamic rank progression & target
-  const rankGoals: Record<string, { nextRank: string; targetAmount: number; rewardName: string }> = {
-    "Client Adviser": {
-      nextRank: "Senior Adviser",
-      targetAmount: 2500000,
-      rewardName: "Executive Welcome Kit + Silver Trophy",
-    },
-    "Senior Adviser": {
-      nextRank: "Team Leader",
-      targetAmount: 5000000,
-      rewardName: "Goa Luxury Trip + Special Bonus",
-    },
-    "Team Leader": {
-      nextRank: "Sales Manager",
-      targetAmount: 10000000,
-      rewardName: "Thailand International Tour + Gold Shield",
-    },
-    "Sales Manager": {
-      nextRank: "Director",
-      targetAmount: 25000000,
-      rewardName: "Luxury Car Bonanza + Royal Trophy",
-    },
-  };
-
-  const currentRankInfo = rankGoals[associateRank] || {
-    nextRank: "Senior Adviser",
-    targetAmount: 2500000,
-    rewardName: "Executive Privilege Trophy + Cash Bonus",
-  };
-
-  const rankProgressPercent = Math.min(
-    100,
-    Math.round((actualSalesAmount / currentRankInfo.targetAmount) * 100)
-  );
 
   const referralLink = `${
     process.env.NEXTAUTH_URL || "https://shreekarnirealestate.vercel.app"
@@ -645,10 +646,10 @@ export default async function AssociateDashboard() {
           <div className="bg-[#0d1b2a] text-white px-5 py-3.5 flex items-center justify-between">
             <h3 className="text-sm font-bold tracking-tight">My Rank & Rewards</h3>
             <Link
-              href="/dashboard/profile"
+              href="/dashboard/commission-rules"
               className="text-xs font-semibold text-amber-300 hover:text-white flex items-center gap-1 transition"
             >
-              <span>View Details</span>
+              <span>Commission Rules</span>
               <ArrowRight size={13} />
             </Link>
           </div>
@@ -660,23 +661,32 @@ export default async function AssociateDashboard() {
                 <div className="w-full h-full bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 rounded-b-[36px] rounded-t-xl shadow-lg border-2 border-amber-200 flex flex-col items-center justify-center p-2 text-center text-white">
                   <Crown size={28} className="text-white drop-shadow-md mb-1" />
                   <span className="text-[11px] font-black tracking-tight uppercase leading-tight">
-                    {associateRank}
+                    {dynamicRankTitle}
                   </span>
                   <span className="text-[8px] font-extrabold uppercase tracking-widest mt-1 bg-black/20 px-2 py-0.5 rounded text-amber-100">
-                    {actualPlotsSold > 0 ? "Active Rank" : "Initial Level"}
+                    ₹{currentTier.rate} / Gaj
                   </span>
                 </div>
               </div>
 
               {/* Next Rank Goal & Progress */}
               <div className="flex-1 space-y-1.5">
-                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  Next Rank Target ({currentRankInfo.nextRank})
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    {nextTier ? `Next Rank: ${nextTier.rankName}` : "Top Rank Reached"}
+                  </p>
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                    {nextTier ? `Target: ${targetGaj.toLocaleString("en-IN")} Gaj` : "Max Tier"}
+                  </span>
+                </div>
                 <h4 className="text-xl font-black text-gray-900 leading-tight font-mono">
-                  ₹ {currentRankInfo.targetAmount.toLocaleString("en-IN")}
+                  {targetGaj.toLocaleString("en-IN")} <span className="text-sm font-bold text-gray-600">Sq. Yard (Gaj)</span>
                 </h4>
-                <p className="text-[11px] text-gray-500 font-medium">Total Business Requirement</p>
+                <p className="text-[11px] text-gray-500 font-medium">
+                  {nextTier
+                    ? `${gajRemaining.toLocaleString("en-IN")} Gaj remaining to unlock next slab (₹${nextTier.rate.toLocaleString("en-IN")}/Gaj)`
+                    : "Maximum sales milestone unlocked! Enjoy ₹1,500/Gaj rate."}
+                </p>
 
                 {/* Progress bar */}
                 <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
@@ -686,8 +696,8 @@ export default async function AssociateDashboard() {
                   />
                 </div>
                 <div className="flex justify-between text-[10px] font-bold text-gray-500">
-                  <span>Current: ₹ {actualSalesAmount.toLocaleString("en-IN")} ({rankProgressPercent}%)</span>
-                  <span>Goal: 100%</span>
+                  <span>Current: {displaySelfBusiness.toLocaleString("en-IN")} Gaj ({rankProgressPercent}%)</span>
+                  <span>Target: {targetGaj.toLocaleString("en-IN")} Gaj</span>
                 </div>
               </div>
             </div>
@@ -696,11 +706,9 @@ export default async function AssociateDashboard() {
             <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs flex items-center gap-2.5">
               <Gift size={18} className="text-amber-600 shrink-0" />
               <div className="text-xs">
-                <span className="font-bold text-amber-950">Rewards: </span>
+                <span className="font-bold text-amber-950">Milestone Reward: </span>
                 <span className="text-amber-900 font-semibold">
-                  {actualSalesAmount > 0
-                    ? currentRankInfo.rewardName
-                    : "0 Unlocked (Sell plots to qualify for upcoming rank rewards)"}
+                  {nextTier ? nextTier.reward : currentTier.reward}
                 </span>
               </div>
             </div>
