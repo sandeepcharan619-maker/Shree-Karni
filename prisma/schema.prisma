@@ -90,6 +90,9 @@ model Project {
   status          String   @default("ACTIVE") // ACTIVE, UPCOMING, COMPLETED
   totalAcreage    Float?   @default(25.0)
   totalPlotsCount Int?     @default(120)
+  plotPrefix      String?  @default("SKC-")
+  baseRatePerGaj  Float?   @default(11500)
+  baseSizeGaj     Float?   @default(150)
   imageUrl        String?
   layoutMapUrl    String?
   plots           Plot[]

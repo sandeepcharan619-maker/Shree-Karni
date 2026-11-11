@@ -27,6 +27,9 @@ interface Project {
   status: string;
   totalAcreage: number | null;
   totalPlotsCount: number | null;
+  plotPrefix?: string | null;
+  baseRatePerGaj?: number | null;
+  baseSizeGaj?: number | null;
   imageUrl: string | null;
   layoutMapUrl: string | null;
   plotsCount: number;
@@ -59,7 +62,7 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
     totalPlotsCount: "120",
     imageUrl: "/website-bg.png",
     layoutMapUrl: "",
-    plotPrefix: "",
+    plotPrefix: "SKC-",
     baseSizeGaj: "150",
     basePricePerGaj: "11500",
   });
@@ -75,7 +78,7 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
       totalPlotsCount: "120",
       imageUrl: "/website-bg.png",
       layoutMapUrl: "",
-      plotPrefix: "",
+      plotPrefix: "SKC-",
       baseSizeGaj: "150",
       basePricePerGaj: "11500",
     });
@@ -94,9 +97,9 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
       totalPlotsCount: (proj.totalPlotsCount ?? proj.plotsCount ?? 120).toString(),
       imageUrl: proj.imageUrl || "/website-bg.png",
       layoutMapUrl: proj.layoutMapUrl || "",
-      plotPrefix: "",
-      baseSizeGaj: "150",
-      basePricePerGaj: "11500",
+      plotPrefix: proj.plotPrefix || "SKC-",
+      baseSizeGaj: (proj.baseSizeGaj || 150).toString(),
+      basePricePerGaj: (proj.baseRatePerGaj || 11500).toString(),
     });
     setError("");
     setIsModalOpen(true);
@@ -129,6 +132,9 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
       }
 
       setIsModalOpen(false);
+      if (data.message) {
+        alert(data.message);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -261,7 +267,11 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
               </p>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl text-center text-xs">
+              <div className="grid grid-cols-4 gap-2 p-2.5 bg-slate-50 rounded-xl text-center text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-semibold uppercase">Plots Prefix</span>
+                  <span className="font-mono font-bold text-amber-700">{proj.plotPrefix || "SKC-"}</span>
+                </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-semibold uppercase">Total Acreage</span>
                   <span className="font-bold text-slate-800">{proj.totalAcreage || 20} Acres</span>
@@ -423,48 +433,61 @@ export default function AdminProjectsManager({ initialProjects }: AdminProjectsM
                 </div>
               </div>
 
-              {!editingProject && (
-                <div className="p-3 bg-amber-50/90 rounded-xl border border-amber-200 text-amber-950 text-xs space-y-2">
+              <div className="p-3.5 bg-amber-50/90 rounded-xl border border-amber-200 text-amber-950 text-xs space-y-2.5">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 font-bold text-amber-900">
                     <Sparkles size={14} className="text-amber-600" />
-                    <span>Automatic Plot Inventory Generation</span>
+                    <span>
+                      {editingProject ? "Plot Inventory & Starting Name Sync" : "Automatic Plot Inventory Generation"}
+                    </span>
                   </div>
-                  <p className="text-[11px] text-amber-800">
-                    Creating this project will automatically generate <strong>{form.totalPlotsCount || 0} inventory plots</strong> and link them to this project.
-                  </p>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded bg-amber-200/80 text-amber-900">
+                    {editingProject ? "Auto-Renames & Syncs" : "Auto-Creates Plots"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  {editingProject
+                    ? `Editing this project will automatically sync all inventory plots. Changing the starting name/prefix (e.g. to "${form.plotPrefix || "SKC-"}") will automatically rename all plots in inventory, and changing the count will automatically add or adjust plots.`
+                    : `Creating this project will automatically generate ${form.totalPlotsCount || 0} inventory plots (${form.plotPrefix || "SKC-"}001 to ${form.plotPrefix || "SKC-"}${String(form.totalPlotsCount || 100).padStart(3, "0")}) and link them to this project.`}
+                </p>
 
-                  <div className="grid grid-cols-3 gap-2 pt-1.5 border-t border-amber-200/60 text-slate-800">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Plot Prefix</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. SKV"
-                        value={form.plotPrefix}
-                        onChange={(e) => setForm({ ...form, plotPrefix: e.target.value })}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs uppercase font-mono font-bold outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Base Size (GAJ)</label>
-                      <input
-                        type="number"
-                        value={form.baseSizeGaj}
-                        onChange={(e) => setForm({ ...form, baseSizeGaj: e.target.value })}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Rate/GAJ (₹)</label>
-                      <input
-                        type="number"
-                        value={form.basePricePerGaj}
-                        onChange={(e) => setForm({ ...form, basePricePerGaj: e.target.value })}
-                        className="w-full px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-amber-500"
-                      />
-                    </div>
+                <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-amber-200/60 text-slate-800">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 mb-1">
+                      Plot Starting Name / Prefix *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. SKC- or VATIKA-"
+                      value={form.plotPrefix}
+                      onChange={(e) => setForm({ ...form, plotPrefix: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs uppercase font-mono font-bold outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                    />
+                    <span className="text-[9px] text-slate-500 block mt-0.5">e.g. SKC-001, SKC-002</span>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 mb-1">Base Size (GAJ)</label>
+                    <input
+                      type="number"
+                      value={form.baseSizeGaj}
+                      onChange={(e) => setForm({ ...form, baseSizeGaj: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                    />
+                    <span className="text-[9px] text-slate-500 block mt-0.5">Default size per plot</span>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 mb-1">Rate / GAJ (₹)</label>
+                    <input
+                      type="number"
+                      value={form.basePricePerGaj}
+                      onChange={(e) => setForm({ ...form, basePricePerGaj: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500 text-slate-900"
+                    />
+                    <span className="text-[9px] text-slate-500 block mt-0.5">Default price per Gaj</span>
                   </div>
                 </div>
-              )}
+              </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Project Description</label>
