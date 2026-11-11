@@ -1091,9 +1091,9 @@ export default async function AssociateDashboard() {
           </div>
 
           <div className="p-3.5 flex-1 grid grid-cols-2 gap-2.5">
-            {/* View Reports / Business */}
+            {/* View Reports */}
             <Link
-              href="/dashboard/business"
+              href="/dashboard/reports"
               className="p-2.5 bg-gray-50 hover:bg-blue-50/70 rounded-xl border border-gray-100 hover:border-blue-200 transition flex flex-col items-center justify-center text-center group"
             >
               <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-1 group-hover:scale-110 transition">
