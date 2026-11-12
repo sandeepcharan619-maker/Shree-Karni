@@ -26,15 +26,18 @@ export default function NavbarAuth() {
         </Link>
 
         <button
-          onClick={() => {
-            const target =
-              typeof window !== "undefined" && window.location.hostname === "localhost"
-                ? "/"
-                : "https://www.shreekarnirealestate.in";
-            signOut({ callbackUrl: target });
+          onClick={async () => {
+            try {
+              await signOut({ redirect: false });
+            } catch (err) {
+              console.error("SignOut error:", err);
+            }
+            if (typeof window !== "undefined") {
+              window.location.href = "/";
+            }
           }}
-          title="Sign Out"
-          className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 transition"
+          title="Sign Out to Main Website"
+          className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
         >
           <LogOut size={16} />
         </button>

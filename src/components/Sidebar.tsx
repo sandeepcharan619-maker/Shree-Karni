@@ -195,6 +195,25 @@ export default function Sidebar({ userRole, isOpen = true, onClose }: SidebarPro
                 </Link>
               );
             })}
+
+            {/* Logout to Main Website Button */}
+            <button
+              onClick={async () => {
+                if (onClose) onClose();
+                try {
+                  await signOut({ redirect: false });
+                } catch (err) {
+                  console.error("SignOut error:", err);
+                }
+                if (typeof window !== "undefined") {
+                  window.location.href = "/";
+                }
+              }}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold text-rose-300 hover:text-white hover:bg-rose-500/20 transition-all cursor-pointer mt-1"
+            >
+              <LogOut size={17} strokeWidth={2} className="text-rose-400" />
+              <span>Logout</span>
+            </button>
           </nav>
         </div>
 

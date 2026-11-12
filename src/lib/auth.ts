@@ -3,9 +3,9 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "./prisma";
 import bcrypt from "bcryptjs";
 
-// Ensure NEXTAUTH_URL has a valid fallback in production on Vercel
-if (!process.env.NEXTAUTH_URL && process.env.VERCEL_URL) {
-  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`;
+// Ensure NEXTAUTH_URL defaults to the main production website domain
+if (!process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = "https://www.shreekarnirealestate.in";
 }
 
 export const authOptions: NextAuthOptions = {
@@ -143,21 +143,25 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
+      if (baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")) {
+        if (url === "/" || url === "") return `${baseUrl}/`;
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
+        return url;
+      }
+
+      if (url === "/" || url === "") {
+        return "https://www.shreekarnirealestate.in/";
+      }
+      if (url === "/login") {
+        return "https://www.shreekarnirealestate.in/login";
+      }
+      if (url.startsWith("/")) {
+        return `https://www.shreekarnirealestate.in${url}`;
+      }
       if (url.includes("shreekarnirealestate.in")) {
         return url.startsWith("http") ? url : `https://${url}`;
       }
-      if (url === "/login") {
-        return `${baseUrl}/login`;
-      }
-      if (url.startsWith("/")) {
-        return `${baseUrl}${url}`;
-      }
-      try {
-        if (new URL(url).origin === baseUrl) {
-          return url;
-        }
-      } catch {}
-      return "https://www.shreekarnirealestate.in";
+      return "https://www.shreekarnirealestate.in/";
     },
   },
   pages: {

@@ -180,9 +180,18 @@ export default function Header({ userRole, onToggleSidebar }: HeaderProps) {
           </div>
         </Link>
 
-        {/* Logout Button */}
+        {/* Logout Button: Clean SignOut and direct redirect to Main Website Home Page (/) */}
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={async () => {
+            try {
+              await signOut({ redirect: false });
+            } catch (err) {
+              console.error("SignOut error:", err);
+            }
+            if (typeof window !== "undefined") {
+              window.location.href = "/";
+            }
+          }}
           className="bg-[#0d1b2a] hover:bg-[#1a2d42] text-white text-xs font-semibold px-3 sm:px-4 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm cursor-pointer"
         >
           <span className="hidden xs:inline">Logout</span>
