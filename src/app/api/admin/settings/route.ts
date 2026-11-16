@@ -52,3 +52,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Failed to fetch settings" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const target = searchParams.get("target") || "audit";
+
+    if (target === "audit") {
+      const deleted = await prisma.activityLog.deleteMany({});
+      return NextResponse.json({
+        success: true,
+        message: `Deleted ${deleted.count} audit log records successfully`,
+        count: deleted.count,
+      });
+    }
+
+    return NextResponse.json({ error: "Invalid target specified" }, { status: 400 });
+  } catch (error: any) {
+    console.error("DELETE /api/admin/settings error:", error);
+    return NextResponse.json({ error: error.message || "Failed to clear audit logs" }, { status: 500 });
+  }
+}

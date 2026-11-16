@@ -14,6 +14,7 @@ import {
   Building2,
   Database,
   History,
+  Trash2,
 } from "lucide-react";
 
 interface ActivityLogItem {
@@ -46,6 +47,31 @@ export default function AdminSettingsManager({
   totalRecords,
 }: AdminSettingsManagerProps) {
   const [activeTab, setActiveTab] = useState<"audit" | "security" | "backup">("audit");
+  const [logs, setLogs] = useState<ActivityLogItem[]>(activityLogs);
+  const [clearingAudit, setClearingAudit] = useState(false);
+
+  const handleClearAuditLogs = async () => {
+    if (!confirm("Are you sure you want to remove ALL audit logs? This action cannot be undone.")) {
+      return;
+    }
+    setClearingAudit(true);
+    try {
+      const res = await fetch("/api/admin/settings?target=audit", {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLogs([]);
+        alert("All audit logs have been successfully removed.");
+      } else {
+        alert(data.error || "Failed to remove audit logs");
+      }
+    } catch {
+      alert("An error occurred while removing audit logs");
+    } finally {
+      setClearingAudit(false);
+    }
+  };
 
   // Password state
   const [passwordForm, setPasswordForm] = useState({
@@ -143,7 +169,7 @@ export default function AdminSettingsManager({
             }`}
           >
             <History size={14} />
-            <span>Activity Audit Log ({activityLogs.length})</span>
+            <span>Activity Audit Log ({logs.length})</span>
           </button>
           <button
             onClick={() => setActiveTab("security")}
@@ -175,7 +201,7 @@ export default function AdminSettingsManager({
       {/* ============================================================== */}
       {activeTab === "audit" && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                 <Clock size={16} className="text-amber-500" />
@@ -183,13 +209,24 @@ export default function AdminSettingsManager({
               </h3>
               <p className="text-xs text-slate-500">Every plot booking, collection, project update, and commission approval is permanently logged.</p>
             </div>
-            <button
-              onClick={handleExportBackup}
-              className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 transition"
-            >
-              <Download size={13} />
-              <span>Export Audit Trail</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportBackup}
+                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 transition"
+              >
+                <Download size={13} />
+                <span>Export Audit Trail</span>
+              </button>
+              <button
+                onClick={handleClearAuditLogs}
+                disabled={clearingAudit || logs.length === 0}
+                className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Remove all audit logs"
+              >
+                <Trash2 size={13} />
+                <span>{clearingAudit ? "Clearing..." : "Clear All Logs"}</span>
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -204,22 +241,32 @@ export default function AdminSettingsManager({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {activityLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50 transition">
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-100 text-slate-800">
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-bold text-blue-700">{log.entity}</td>
-                    <td className="py-3 px-4 font-medium text-slate-800">{log.details || "-"}</td>
-                    <td className="py-3 px-4 font-semibold text-slate-600">{log.performedBy}</td>
-                    <td className="py-3 px-4 text-right text-slate-400 font-mono whitespace-nowrap">
-                      {new Date(log.createdAt).toLocaleDateString("en-IN")} •{" "}
-                      {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {logs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-slate-400">
+                      <Clock size={36} className="mx-auto mb-2 text-slate-300 opacity-60" />
+                      <p className="font-semibold text-slate-600 text-sm">No Audit Logs</p>
+                      <p className="text-xs text-slate-400 mt-1">Audit log is clean and empty. New events will appear here as you create projects and plots.</p>
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  logs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50 transition">
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-100 text-slate-800">
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-blue-700">{log.entity}</td>
+                      <td className="py-3 px-4 font-medium text-slate-800">{log.details || "-"}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-600">{log.performedBy}</td>
+                      <td className="py-3 px-4 text-right text-slate-400 font-mono whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleDateString("en-IN")} •{" "}
+                        {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
