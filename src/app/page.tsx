@@ -30,6 +30,7 @@ import HeroAuthButtons from "@/components/HeroAuthButtons";
 import AssociateSectionButtons from "@/components/AssociateSectionButtons";
 import PlotCalculator from "@/components/PlotCalculator";
 import FloatingContactPill from "@/components/FloatingContactPill";
+import OfficeLocationMap from "@/components/OfficeLocationMap";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -46,9 +47,13 @@ export default async function HomePage() {
               JDA & RERA Approved Townships
             </span>
             <span className="hidden md:inline text-slate-600">•</span>
-            <span className="hidden md:flex items-center gap-1 text-slate-300">
-              <MapPin size={12} className="text-emerald-400" /> Prime City: Jaipur Corridors
-            </span>
+            <a
+              href="#office-map"
+              className="hidden md:flex items-center gap-1 text-slate-300 hover:text-emerald-400 transition"
+              title="Click to view office location map"
+            >
+              <MapPin size={12} className="text-emerald-400" /> Office: Main Vatika Road, Jaipur (View Map)
+            </a>
           </div>
 
           <div className="flex items-center gap-4">
@@ -102,6 +107,13 @@ export default async function HomePage() {
             </Link>
             <Link href="#calculator" className="hover:text-emerald-600 transition">
               Plot Calculator
+            </Link>
+            <Link
+              href="#office-map"
+              className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold transition flex items-center gap-1.5 border border-emerald-200/80"
+            >
+              <MapPin size={13} className="text-emerald-600" />
+              <span>Office Map</span>
             </Link>
             <Link href="#contact" className="hover:text-emerald-600 transition">
               Contact
@@ -547,7 +559,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 10. CONTACT & SITE VISIT INQUIRY SECTION */}
+      {/* 10. INTERACTIVE OFFICE LOCATION & MAP */}
+      <OfficeLocationMap />
+
+      {/* 11. CONTACT & SITE VISIT INQUIRY SECTION */}
       <section id="contact" className="py-20 bg-slate-50/70 border-b border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -568,8 +583,16 @@ export default async function HomePage() {
                     <MapPin size={20} />
                   </div>
                   <div>
-                    <p className="font-bold text-sm text-slate-900">Office Location</p>
-                    <p className="text-xs text-slate-500">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-bold text-sm text-slate-900">Office Location</p>
+                      <a
+                        href="#office-map"
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-0.5"
+                      >
+                        <span>View Map</span> &rarr;
+                      </a>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
                       Shree Karni Real Estate, Main Vatika Road, Jaipur, Rajasthan, India
                     </p>
                   </div>
@@ -639,6 +662,14 @@ export default async function HomePage() {
               <li><Link href="#why-us" className="hover:text-emerald-400 transition">Why Us</Link></li>
               <li><Link href="#associate" className="hover:text-emerald-400 transition">Associate Program</Link></li>
               <li><Link href="#calculator" className="hover:text-emerald-400 transition">Plot Calculator</Link></li>
+              <li>
+                <Link
+                  href="#office-map"
+                  className="hover:text-emerald-400 transition text-emerald-400 font-semibold flex items-center gap-1"
+                >
+                  <MapPin size={11} /> Office Location &amp; Map
+                </Link>
+              </li>
               <li><Link href="#contact" className="hover:text-emerald-400 transition">Contact Us</Link></li>
             </ul>
           </div>
